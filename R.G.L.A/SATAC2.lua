@@ -28,38 +28,48 @@ local startTimer = nil  -- Время, когда игра должна нача
 local groupsOutsideZone = {}
 
 -- Функция для отправки сообщений только участвующим группам с использованием MIST
-local function SendMessageToParticipants(messageText, duration, messageTo)
+local function SendMessageToParticipants(messageText, duration, messageTo, messageName, soundName)
     duration = duration or 10
-    local _msgFor = nil
-    if (type(messageTo)=='string') then 
-        _msgFor = {units = {messageTo}}
-    elseif (type(messageTo)=='table') then
-        _msgFor = {units = messageTo}
-    end
-
-    local currentPlayerUnitNames = {}
-    redPlayerSet:ForEachGroup(function(group)
-        for i = 1, #group:GetUnits() do
-            local unit = group:GetUnit( i )
-            table.insert(currentPlayerUnitNames, unit:GetName())
-        end  
-    end)
-    bluePlayerSet:ForEachGroup(function(group)
-        for i = 1, #group:GetUnits() do
-            local unit = group:GetUnit( i )
-            table.insert(currentPlayerUnitNames, unit:GetName())
+    local _msgName = messageName or "SATAC Status"
+    local _msgFor = messageTo
+    local _sound = soundName or nil
+    if _msgFor ~= nil then
+        if (type(messageTo)=='string') then 
+            _msgFor = {units = {messageTo}}
+        elseif (type(messageTo)=='table') then
+            _msgFor = {units = messageTo}
+        elseif (not messageTo or (type(messageTo)=='number' and messageTo == 0)) then
+            _msgFor = {coa = {'all'}}
         end
-    end)
+    else
+        local currentPlayers = {}
+        _msgFor = {units = currentPlayers}
+        
+        redPlayerSet:ForEachGroup(function(group)
+            for i = 1, #group:GetUnits() do
+                local unit = group:GetUnit( i )
+                table.insert(currentPlayers, unit:GetName())
+            end  
+        end)
+        bluePlayerSet:ForEachGroup(function(group)
+            for i = 1, #group:GetUnits() do
+                local unit = group:GetUnit( i )
+                table.insert(currentPlayers, unit:GetName())
+            end
+        end)
+    end
     mist.message.add({
-                name = 'SATAC Status',
+                name = _msgName,
                 text = messageText,
                 displayTime = duration,
-                msgFor = _msgFor
+                msgFor = _msgFor,
+                sound = _sound
     })
 end
 
 -- Функция для отображения статусной панели с использованием MIST
 local function DisplayStatusPanel()
+
     local redAliveTotal = redPlayerSet:CountAlive()
     local blueAliveTotal = bluePlayerSet:CountAlive()
 
@@ -93,12 +103,12 @@ local function DisplayStatusPanel()
     statusMessage = statusMessage .. string.format("Синие: живых %d, в зоне %d\n",  blueAliveTotal, blueCountInZone)
 
     -- Добавляем информацию о времени до начала игры, если применимо
-    if not gameStarted and redEnteredZoneTime ~= nil and blueEnteredZoneTime ~= nil and startTimer ~= nil then
+    if not gameStarted and (redEnteredZoneTime ~= nil or blueEnteredZoneTime ~= nil) and startTimer ~= nil then
         local timeRemaining = math.floor(startTimer - timer.getTime())
         if timeRemaining > 0 then
-            statusMessage = statusMessage .. string.format("Игра начнётся через %d секунд.\n", timeRemaining)
+            statusMessage = statusMessage .. string.format("-------------------------------------\nИгра начнётся через %d секунд по таймеру.\n", timeRemaining)
         else
-            statusMessage = statusMessage .. "Игра скоро начнётся...\n"
+            statusMessage = statusMessage .. "-------------------------------------\nИгра скоро начнётся...\n"
         end
     end
 
@@ -116,12 +126,7 @@ local function DisplayStatusPanel()
             table.insert(currentPlayerUnitNames, unit:GetName())
         end
     end)
-    mist.message.add({
-        text = statusMessage,
-        displayTime = 25,
-        msgFor = {units = currentPlayerUnitNames},
-        name = "StatusPanel_"
-    })
+    SendMessageToParticipants(statusMessage, 25, currentPlayerUnitNames, "StatusPanel_")
 end
 
 -- Функция для проверки наличия живых групп вне зоны с неистёкшим таймером
@@ -163,15 +168,7 @@ local function ResetGame()
     startTimer = nil
     groupsOutsideZone = {}
 
-    -- Очищаем статусную панель для всех групп
-    redPlayerSet:ForEachGroup(function(group)
-        local groupName = group:GetName()
-        mist.message.removeByName("StatusPanel_" .. groupName)
-    end)
-    bluePlayerSet:ForEachGroup(function(group)
-        local groupName = group:GetName()
-        mist.message.removeByName("StatusPanel_" .. groupName)
-    end)
+    mist.message.removeByName("StatusPanel_")
 
     -- Запланировать уведомление о начале нового раунда через 30 секунд
     SCHEDULER:New(nil, function()
@@ -224,18 +221,20 @@ local function CheckGroupsInZone()
             blueEnteredZoneTime = timer.getTime()
         end
 
-        if redEnteredZoneTime ~= nil and blueEnteredZoneTime ~= nil then
+        if redEnteredZoneTime ~= nil or blueEnteredZoneTime ~= nil then
             if allRedInZone and allBlueInZone then
                 -- Все группы обеих сторон в зоне
                 gameStarted = true
-                SendMessageToParticipants("Игра началась! Все самолёты вошли в зону.", 10)
+                SendMessageToParticipants("Игра началась! Все самолёты вошли в зону.", 10)         
+                USERSOUND:New("top-gun-bell.ogg"):ToAll()
             else
                 -- Запускаем таймер на 120 секунд
                 if startTimer == nil then
-                    startTimer = math.max(redEnteredZoneTime, blueEnteredZoneTime) + 120
+                    startTimer = math.max(redEnteredZoneTime or 0, blueEnteredZoneTime or 0) + 120
                 end
                 if timer.getTime() >= startTimer then
                     gameStarted = true
+                    USERSOUND:New("top-gun-bell.ogg"):ToAll()
                     SendMessageToParticipants("Игра началась! 120 секунд прошло после входа первых самолётов обеих сторон.", 10)
                 end
             end
@@ -256,16 +255,19 @@ local function CheckGroupsInZone()
                     if not groupsOutsideZone[groupName] then
                         groupsOutsideZone[groupName] = timer.getTime() + 60
                         -- Отправляем сообщение группе
-                        mist.message.add({
-                            text = groupName .. " покинул зону. У него есть 60 секунд, чтобы вернуться!",
-                            displayTime = 10,
-                            msgFor = {groups = {groupName}},
-                            name = "OutsideWarning_" .. groupName
-                        })
+                        SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
+                        10, 
+                        group:GetUnits()[1]:GetName(),
+                        "OutsideWarning_" .. groupName)
                     else
+                        -- Отправляем сообщение группе
+                        SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
+                        10, 
+                        group:GetUnits()[1]:GetName(),
+                        "OutsideWarning_" .. groupName)
                         if timer.getTime() >= groupsOutsideZone[groupName] then
                             group:Explode(100)
-                            SendMessageToParticipants(groupName .. " не вернулся в зону и был уничтожен!", 10)
+                            SendMessageToParticipants(group:GetUnits()[1]:GetClient() .. " не вернулся в зону и был уничтожен!", 10)
                             groupsOutsideZone[groupName] = nil
                             mist.message.removeByName("OutsideWarning_" .. groupName)
                         end
@@ -284,18 +286,20 @@ local function CheckGroupsInZone()
                     if not groupsOutsideZone[groupName] then
                         groupsOutsideZone[groupName] = timer.getTime() + 60
                         -- Отправляем сообщение группе
-                        mist.message.add({
-                            text = groupName .. " покинул зону. У него есть 60 секунд, чтобы вернуться!",
-                            displayTime = 10,
-                            msgFor = {groups = {groupName}},
-                            name = "OutsideWarning_" .. groupName
-                        })
+                        SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
+                        10, 
+                        group:GetUnits()[1]:GetName(),
+                        "OutsideWarning_" .. groupName)
                     else
+                        -- Отправляем сообщение группе
+                        SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
+                        10, 
+                        group:GetUnits()[1]:GetName(),
+                        "OutsideWarning_" .. groupName)
                         if timer.getTime() >= groupsOutsideZone[groupName] then
                             group:Explode(100)
-                            SendMessageToParticipants(groupName .. " не вернулся в зону и был уничтожен!", 10)
+                            SendMessageToParticipants(group:GetUnits()[1]:GetPlayerName() .. " не вернулся в зону и был уничтожен!", 10)
                             groupsOutsideZone[groupName] = nil
-                            mist.message.removeByName("OutsideWarning_" .. groupName)
                         end
                     end
                 end
@@ -311,7 +315,9 @@ local function CheckGroupsInZone()
                 local blueHasGroupsWithTime = AreGroupsOutsideZoneWithTimeRemaining(bluePlayerSet)
                 if not blueHasGroupsWithTime then
                     -- Красные победили
-                    SendMessageToParticipants("Красная коалиция победила!", 30)
+                    -- SendMessageToParticipants("SATAC 2.0: Красная коалиция победила!", 30, 0)
+                    MESSAGE:New("SATAC 2.0: Красная коалиция победила!", 30):ToAll()
+                    USERSOUND:New("win-game-sound.ogg"):ToAll()
                     gameActive = false
                     -- Запускаем сброс игры
                     ResetGame()
@@ -320,7 +326,9 @@ local function CheckGroupsInZone()
                 local redHasGroupsWithTime = AreGroupsOutsideZoneWithTimeRemaining(redPlayerSet)
                 if not redHasGroupsWithTime then
                     -- Синие победили
-                    SendMessageToParticipants("Синяя коалиция победила!", 30)
+                    -- SendMessageToParticipants("SATAC 2.0: Синяя коалиция победила!", 30, 0)
+                    MESSAGE:New("SATAC 2.0: Синяя коалиция победила!", 30):ToAll()
+                    USERSOUND:New("win-game-sound.ogg"):ToAll()
                     gameActive = false
                     -- Запускаем сброс игры
                     ResetGame()
@@ -332,7 +340,9 @@ local function CheckGroupsInZone()
 
                 if not redHasGroupsWithTime and not blueHasGroupsWithTime then
                     -- Ничья
-                    SendMessageToParticipants("Ничья! Все самолёты были уничтожены.", 30)
+                    -- SendMessageToParticipants("SATAC 2.0: Ничья! Все самолёты были уничтожены.", 30, 0)
+                    MESSAGE:New("SATAC 2.0: Ничья! Все самолёты были уничтожены.", 30):ToAll()
+                    USERSOUND:New("win-game-sound.ogg"):ToAll()
                     gameActive = false
                     -- Запускаем сброс игры
                     ResetGame()
