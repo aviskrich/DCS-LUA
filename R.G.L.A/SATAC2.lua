@@ -27,6 +27,8 @@ local blueEnteredZoneTime = nil
 local startTimer = nil  -- Время, когда игра должна начаться через 120 секунд
 local groupsOutsideZone = {}
 
+msrs = MSRS:New('', 305.00, 0, MSRS.Backend.SRSEXE):SetCoalition(coalition.side.NEUTRAL):SetVoice("ru-RU-Standard-B")
+
 -- Функция для отправки сообщений только участвующим группам с использованием MIST
 local function SendMessageToParticipants(messageText, duration, messageTo, messageName, soundName)
     duration = duration or 10
@@ -168,13 +170,7 @@ local function ResetGame()
     startTimer = nil
     groupsOutsideZone = {}
 
-    mist.message.removeByName("StatusPanel_")
-
-    -- Запланировать уведомление о начале нового раунда через 30 секунд
-    SCHEDULER:New(nil, function()
-        -- Уведомляем игроков о начале нового раунда
-        SendMessageToParticipants("Новый раунд начался! Возвращайтесь в бой.", 10)
-    end, {}, 30)
+    -- mist.message.removeByName("StatusPanel_")
 end
 
 -- Функция для проверки состояния игры и обработки логики
@@ -221,21 +217,24 @@ local function CheckGroupsInZone()
             blueEnteredZoneTime = timer.getTime()
         end
 
-        if redEnteredZoneTime ~= nil or blueEnteredZoneTime ~= nil then
+        if redEnteredZoneTime ~= nil and blueEnteredZoneTime ~= nil then
             if allRedInZone and allBlueInZone then
                 -- Все группы обеих сторон в зоне
                 gameStarted = true
+                msrs:PlayText("Игра началась!", 1)
                 SendMessageToParticipants("Игра началась! Все самолёты вошли в зону.", 10)         
-                USERSOUND:New("top-gun-bell.ogg"):ToAll()
+                USERSOUND:New("top-gun-bell.ogg"):ToAll()                
             else
                 -- Запускаем таймер на 120 секунд
                 if startTimer == nil then
                     startTimer = math.max(redEnteredZoneTime or 0, blueEnteredZoneTime or 0) + 120
+                    msrs:PlayText("Как минимум один самолет с каждой стороны зашел в зону. Таймер старта игры запущен! До старта 2 минуты!", 2)
                 end
                 if timer.getTime() >= startTimer then
                     gameStarted = true
+                    msrs:PlayText("Игра началась!", 1)
                     USERSOUND:New("top-gun-bell.ogg"):ToAll()
-                    SendMessageToParticipants("Игра началась! 120 секунд прошло после входа первых самолётов обеих сторон.", 10)
+                    SendMessageToParticipants("Игра началась! 120 секунд прошло после входа первых самолётов обеих сторон.", 10)                    
                 end
             end
         end
@@ -254,17 +253,21 @@ local function CheckGroupsInZone()
                     -- Группа вне зоны
                     if not groupsOutsideZone[groupName] then
                         groupsOutsideZone[groupName] = timer.getTime() + 60
-                        -- Отправляем сообщение группе
-                        SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
-                        10, 
-                        group:GetUnits()[1]:GetName(),
-                        "OutsideWarning_" .. groupName)
+                        -- Отправляем сообщение группе   
+                        if group:GetUnits()[1]:GetPlayerName() ~= nil then
+                            SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
+                            10, 
+                            group:GetUnits()[1]:GetName(),
+                            "OutsideWarning_" .. groupName)
+                        end
                     else
                         -- Отправляем сообщение группе
-                        SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
-                        10, 
-                        group:GetUnits()[1]:GetName(),
-                        "OutsideWarning_" .. groupName)
+                        if group:GetUnits()[1]:GetPlayerName() ~= nil then
+                            SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
+                            10, 
+                            group:GetUnits()[1]:GetName(),
+                            "OutsideWarning_" .. groupName)
+                        end
                         if timer.getTime() >= groupsOutsideZone[groupName] then
                             group:Explode(100)
                             SendMessageToParticipants(group:GetUnits()[1]:GetClient() .. " не вернулся в зону и был уничтожен!", 10)
@@ -286,16 +289,20 @@ local function CheckGroupsInZone()
                     if not groupsOutsideZone[groupName] then
                         groupsOutsideZone[groupName] = timer.getTime() + 60
                         -- Отправляем сообщение группе
-                        SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
-                        10, 
-                        group:GetUnits()[1]:GetName(),
-                        "OutsideWarning_" .. groupName)
+                        if group:GetUnits()[1]:GetPlayerName() ~= nil then
+                            SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
+                            10, 
+                            group:GetUnits()[1]:GetName(),
+                            "OutsideWarning_" .. groupName)                        
+                        end
                     else
                         -- Отправляем сообщение группе
-                        SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
-                        10, 
-                        group:GetUnits()[1]:GetName(),
-                        "OutsideWarning_" .. groupName)
+                        if group:GetUnits()[1]:GetPlayerName() ~= nil then
+                            SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
+                            10, 
+                            group:GetUnits()[1]:GetName(),
+                            "OutsideWarning_" .. groupName)
+                        end
                         if timer.getTime() >= groupsOutsideZone[groupName] then
                             group:Explode(100)
                             SendMessageToParticipants(group:GetUnits()[1]:GetPlayerName() .. " не вернулся в зону и был уничтожен!", 10)
@@ -318,6 +325,7 @@ local function CheckGroupsInZone()
                     -- SendMessageToParticipants("SATAC 2.0: Красная коалиция победила!", 30, 0)
                     MESSAGE:New("SATAC 2.0: Красная коалиция победила!", 30):ToAll()
                     USERSOUND:New("win-game-sound.ogg"):ToAll()
+                    msrs:PlayText("В раунде SATAC победила красная коалиция!", 1)
                     gameActive = false
                     -- Запускаем сброс игры
                     ResetGame()
@@ -329,6 +337,7 @@ local function CheckGroupsInZone()
                     -- SendMessageToParticipants("SATAC 2.0: Синяя коалиция победила!", 30, 0)
                     MESSAGE:New("SATAC 2.0: Синяя коалиция победила!", 30):ToAll()
                     USERSOUND:New("win-game-sound.ogg"):ToAll()
+                    msrs:PlayText("В раунде SATAC победила синяя коалиция!", 1)
                     gameActive = false
                     -- Запускаем сброс игры
                     ResetGame()
@@ -343,6 +352,7 @@ local function CheckGroupsInZone()
                     -- SendMessageToParticipants("SATAC 2.0: Ничья! Все самолёты были уничтожены.", 30, 0)
                     MESSAGE:New("SATAC 2.0: Ничья! Все самолёты были уничтожены.", 30):ToAll()
                     USERSOUND:New("win-game-sound.ogg"):ToAll()
+                    msrs:PlayText("В раунде SATAC ничья!", 1)
                     gameActive = false
                     -- Запускаем сброс игры
                     ResetGame()
@@ -353,7 +363,7 @@ local function CheckGroupsInZone()
 end
 
 -- Планировщик для регулярной проверки состояния игры
-SCHEDULER:New(nil, CheckGroupsInZone, {}, 0, 1)
+SCHEDULER:New(nil, CheckGroupsInZone, {}, 0, 2)
 
 -- Планировщик для обновления статусной панели каждые 5 секунд
 SCHEDULER:New(nil, DisplayStatusPanel, {}, 0, 5)
