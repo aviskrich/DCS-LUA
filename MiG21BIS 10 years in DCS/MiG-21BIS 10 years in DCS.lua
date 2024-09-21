@@ -75,22 +75,37 @@ end
 
 -- Cоздаем зону оценки отклонения
 local deviationZone = ZONE:New('Zone 3 (Control)')
+local supersonicZone = ZONE:New('Maykop Supersonic')
 local playerDeviations = {}
+local playerSupersonic = {}
+
 
 -- Функция мониторинга зоны deviationZone и расчета отклонения для каждого зашедшего самолета из группы playerGroups
 SCHEDULER:New(nil, function ()
         -- @type COORDINATE
         local legStartCoord = ZONE:New('DevCourse Entry Point'):GetCoordinate(2000)
-        local legEndCoord = ZONE:New('DevCourse Exit Point'):GetCoordinate(2000)
-        
+        local legEndCoord = ZONE:New('DevCourse Exit Point'):GetCoordinate(2000)        
+
+
         playerGroups:ForEachGroupAlive(function(group)
             if group:IsCompletelyInZone(deviationZone) and playerDeviations[group:GetName()] == nil then
                 local deviation = computeDeviation(legStartCoord:GetVec2(), legEndCoord:GetVec2(), group:GetPositionVec3())
-                playerDeviations[group:GetName()] = deviation
-                MESSAGE:New(string.format("Отклонение группы %s: %d в метрах по горионтали и %d в метрах по высоте", group:GetName(), deviation[1], deviation[2]), 15):ToAll()
+                table.insert(playerDeviations, {group:GetName(), deviation})
+                MESSAGE:New(string.format("Отклонение группы %s: %d в метрах по горионтали и %d в метрах по высоте", group:GetName(), deviation[1], deviation[2]), 15):ToAll()           
+            end
+            if group:IsCompletelyInZone(supersonicZone) then
+                local units = group:GetUnits()
+                for i = 1, #units do
+                    if (units[i] and units[i]:IsAlive()) then 
+                        if (units[i]:GetVelocityMPS() > 343 and playerSupersonic[units[i]:GetName()]==nil) then
+                            playerSupersonic[units[i]:GetName()]= units[i]:GetVelocityMPS()
+                            MESSAGE:New(string.format("Пилот группы %s c именем %s превысил звуковой барьер в зоне н/п Майкоп. Снижайте скорость!", group:GetName(), units[i]:GetPlayerName()), 15):ToAll()
+                        end
+                    end
+                end 
             end
         end)
-    end, {}, 10, 3)
+    end, {}, 1, 2)
 
 -- -- Создаем список запрещенных зон
 -- local RedZones = {
