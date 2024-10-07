@@ -40,16 +40,22 @@ GRPC.load()
 -- MOOSE SRS
 local msrs = MSRS:New(nil, 305, coalition.side.NEUTRAL):SetVoice("en-US-Standard-B")
 
+local text=SOUNDTEXT:New("Как минимум один самолет с каждой стороны зашел в зону. Таймер старта игры запущен! До старта 2 минуты!"):SetVoice("es-ES-Standard-A")
+msrs:PlaySoundText(text, 0)
+
+local text=SOUNDTEXT:New("At least one aircraft from each side has entered the zone. The game start timer is running! 2 minutes until the start!"):SetVoice("en-US-Standard-B") 
+msrs:PlaySoundText(text, 15)
+
 env.info("LOCALE is "..SETTINGS:GetLocale())
-if (SETTINGS:GetLocale() == 'ru') then
-    msrs:SetVoice("ru-RU-Standard-B")
-    local text=SOUNDTEXT:New("Как минимум один самолет с каждой стороны зашел в зону. Таймер старта игры запущен! До старта 2 минуты!"):SetVoice("ru-RU-Standard-B")
-    msrs:PlaySoundText(text, 0)
+-- if (SETTINGS:GetLocale() == 'ru') then
+--     msrs:SetVoice("ru-RU-Standard-B")
+--     local text=SOUNDTEXT:New("Как минимум один самолет с каждой стороны зашел в зону. Таймер старта игры запущен! До старта 2 минуты!"):SetVoice("ru-RU-Standard-B")
+--     msrs:PlaySoundText(text, 0)
     
-elseif (SETTINGS:GetLocale() == 'en') then    
-    local text=SOUNDTEXT:New("At least one aircraft from each side has entered the zone. The game start timer is running! 2 minutes until the start!"):SetVoice("en-US-Standard-B") 
-    msrs:PlaySoundText(text, 0)
-end
+-- elseif (SETTINGS:GetLocale() == 'en') then    
+--     local text=SOUNDTEXT:New("At least one aircraft from each side has entered the zone. The game start timer is running! 2 minutes until the start!"):SetVoice("en-US-Standard-B") 
+--     msrs:PlaySoundText(text, 0)
+-- end
 
 -- env.info("MSRS:New(nil, 305.0):PlaySoundText(text, 0) done")    
 -- msrs:PlayText("Hello World, this is the Moose simple radio text-to-speech class speaking.")
