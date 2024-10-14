@@ -367,3 +367,64 @@ SCHEDULER:New(nil, CheckGroupsInZone, {}, 0, 2)
 
 -- Планировщик для обновления статусной панели каждые 5 секунд
 SCHEDULER:New(nil, DisplayStatusPanel, {}, 0, 5)
+
+---------------------------------------------------
+-- ОБРАБОТКА СООБЩЕНИЙ ЧАТА ДЛЯ НАСТРОЙКИ МИССИИ --
+---------------------------------------------------
+
+-- Таблица для хранения информации о выключенных AWACS
+DisabledAWACS = {}
+
+-- Функция для отключения всех AWACS
+function DisableAllAWACS()
+    local awacsSet = SET_GROUP:New():FilterPrefixes("AWACS"):FilterStart()
+    awacsSet:ForEachGroup(function(group)
+        local groupName = group:GetName()
+        local groupTemplate = group:GetTemplate()
+        -- Сохраняем шаблон группы для последующего включения
+        DisabledAWACS[groupName] = groupTemplate
+        group:Destroy()
+    end)
+    MESSAGE:New("Все AWACS отключены.", 10):ToAll()
+end
+
+-- Функция для включения всех AWACS
+function EnableAllAWACS()
+    for groupName, groupTemplate in pairs(DisabledAWACS) do
+        -- Создаем объект SPAWN с использованием сохраненного шаблона
+        SPAWN:NewWithAlias(groupName, groupName)
+            :InitTemplate(groupTemplate)
+            :Spawn()
+    end
+    -- Очищаем таблицу после возрождения групп
+    DisabledAWACS = {}
+    MESSAGE:New("Все AWACS включены.", 10):ToAll()
+end
+
+-- Функция обработки сообщения чата
+function RestartMission()
+    if message == "-restart_mission" then
+        -- Устанавливаем пользовательский флаг для перезапуска миссии
+        trigger.action.setUserFlag("RESTART_MISSION", true)
+        -- Отправляем уведомление всем игрокам
+        MESSAGE:New("Запрос на перезапуск миссии получен.", 10):ToAll()
+    end
+end
+
+-- Обработчик чата
+function OnChatMessage(from, message, groupId)
+    if message == "-disable_awacs" then
+        DisableAllAWACS()
+    elseif message == "-enable_awacs" then
+        EnableAllAWACS()
+    end
+    if message == "-restart_mission" then
+        RestartMission()
+    end
+end
+
+-- Регистрация обработчика чата
+BASE:HandleEvent(EVENTS.PlayerChat)
+function BASE:OnEventPlayerChat(eventData)
+    OnChatMessage(eventData.IniPlayerName, eventData.Text, eventData.IniGroupName)
+end
