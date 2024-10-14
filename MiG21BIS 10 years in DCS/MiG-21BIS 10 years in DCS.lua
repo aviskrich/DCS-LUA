@@ -21,7 +21,7 @@ function computeDeviation(A, B, GrPos)
     -- Вычисляем вертикальное отклонение от 2000 метров
     local altitudeDeviation = math.abs(GrPos.y - 2000)  -- GrPos.y — это высота в метрах
 
-    -- Возвращаем таблицу с двумя элементами
+    -- Возвращаем таблицу с двумя элементами (горизонтальное и вертикальное отклонение)
     return { lateralDeviation, altitudeDeviation }
 end
 
@@ -73,7 +73,7 @@ end
 --     end
 -- })
 
--- Cоздаем зону оценки отклонения
+-- Cоздаем зону оценки отклонения и зону превышения звукового барьера (вокруг Майкопа)
 local deviationZone = ZONE:New('Zone 3 (Control)')
 local supersonicZone = ZONE:New('Maykop Supersonic')
 local playerDeviations = {}
