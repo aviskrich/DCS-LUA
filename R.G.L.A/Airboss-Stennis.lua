@@ -10,7 +10,7 @@ tanker:SetTACAN(1, "TKR")
 tanker:__Start(1)
 
 -- E-2D AWACS появляется на USS Stennis.
-local awacs = RECOVERYTANKER:New("USS Stennis", "E-2D Wizard Group")
+local awacs = RECOVERYTANKER:New("USS Stennis", "AWACS Stennis Group")
 awacs:SetAWACS()
 awacs:SetRadio(260)
 awacs:SetAltitude(20000)
