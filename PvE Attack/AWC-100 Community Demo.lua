@@ -11,12 +11,20 @@
 -------------------------------------------------------------------------
 -- Date: Nov 2023
 -------------------------------------------------------------------------
+GRPC.evalEnabled = false
+-- Whether debug logging is enabled or not.
+GRPC.debug = true
+-- Limit of calls per second that are executed inside of the mission scripting environment.
+GRPC.throughputLimit = 600
+
+GRPC.load()
 
 ---- These are set in the MSRS Config file - see https://flightcontrol-master.github.io/MOOSE_DOCS_DEVELOP/Documentation/Sound.SRS.html##(MSRS).LoadConfigFile
 MSRS.LoadConfigFile()
 local hereSRSPath = MSRS.path or "C:\\Program Files\\DCS-SimpleRadio-Standalone"
 local hereSRSPort = MSRS.port or 5002
-local hereSRSGoogle = MSRS.google --or "C:\\Program Files\\DCS-SimpleRadio-Standalone\\yourkey.json"
+local hereSRSGoogle = "C:\\Program Files\\DCS-SimpleRadio-Standalone\\google.json"
+MSRS.SetDefaultBackendGRPC()
 
 --- SETTINGS
 _SETTINGS:SetLocale("en")

@@ -383,7 +383,10 @@ function DisableAllAWACS()
         local groupTemplate = group:GetTemplate()
         -- Сохраняем шаблон группы для последующего включения
         DisabledAWACS[groupName] = groupTemplate
-        group:Destroy()
+        group:Explode(100)
+        if (group) then 
+            group:Destroy()
+        end
     end)
     MESSAGE:New("Все AWACS отключены.", 10):ToAll()
 end
@@ -392,39 +395,37 @@ end
 function EnableAllAWACS()
     for groupName, groupTemplate in pairs(DisabledAWACS) do
         -- Создаем объект SPAWN с использованием сохраненного шаблона
-        SPAWN:NewWithAlias(groupName, groupName)
-            :InitTemplate(groupTemplate)
-            :Spawn()
+        GROUP:FindByName(groupName):Respawn(nil, true)
     end
     -- Очищаем таблицу после возрождения групп
     DisabledAWACS = {}
     MESSAGE:New("Все AWACS включены.", 10):ToAll()
 end
 
--- Функция обработки сообщения чата
-function RestartMission()
-    if message == "-restart_mission" then
-        -- Устанавливаем пользовательский флаг для перезапуска миссии
-        trigger.action.setUserFlag("RESTART_MISSION", true)
-        -- Отправляем уведомление всем игрокам
-        MESSAGE:New("Запрос на перезапуск миссии получен.", 10):ToAll()
-    end
+-- Функция для перезапуска миссии
+function RestartMissionDay()
+    -- Отправляем сообщение всем игрокам
+    MESSAGE:New("Миссия будет перезапущена через 10 секунд.", 10):ToAll()
+
+    -- Задержка перед перезапуском миссии
+    TIMER:New(function()
+        trigger.action.setUserFlag("9001", true)
+    end):Start(10)
 end
 
--- Обработчик чата
-function OnChatMessage(from, message, groupId)
-    if message == "-disable_awacs" then
-        DisableAllAWACS()
-    elseif message == "-enable_awacs" then
-        EnableAllAWACS()
-    end
-    if message == "-restart_mission" then
-        RestartMission()
-    end
+function RestartMissionNight()
+    -- Отправляем сообщение всем игрокам
+    MESSAGE:New("Миссия будет перезапущена через 10 секунд.", 10):ToAll()
+
+    -- Задержка перед перезапуском миссии
+    TIMER:New(function()
+        trigger.action.setUserFlag("9002", true)
+    end):Start(10)
 end
 
--- Регистрация обработчика чата
-BASE:HandleEvent(EVENTS.PlayerChat)
-function BASE:OnEventPlayerChat(eventData)
-    OnChatMessage(eventData.IniPlayerName, eventData.Text, eventData.IniGroupName)
-end
+-- Создание меню управления миссией
+CommandMenu = MENU_MISSION:New("Управление миссией")
+DisableAWACSCommand = MENU_MISSION_COMMAND:New("Убрать AWACS", CommandMenu, DisableAllAWACS)
+EnableAWACSCommand = MENU_MISSION_COMMAND:New("Влючить AWACS", CommandMenu, EnableAllAWACS)
+RestartMissionDayCommand = MENU_MISSION_COMMAND:New("Перезапуск миссии - день", CommandMenu, RestartMissionDay)
+RestartMissionNightCommand = MENU_MISSION_COMMAND:New("Перезапуск миссии - ночь", CommandMenu, RestartMissionNight)
