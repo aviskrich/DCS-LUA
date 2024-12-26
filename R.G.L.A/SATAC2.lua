@@ -375,7 +375,6 @@ SCHEDULER:New(nil, DisplayStatusPanel, {}, 0, 5)
 -- Таблица для хранения информации о выключенных AWACS
 DisabledAWACS = {}
 
-
 -- Функция для отключения всех AWACS
 function DisableAllAWACS()
     local awacsSet = SET_GROUP:New():FilterPrefixes("AWACS"):FilterStart()
