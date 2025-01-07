@@ -1,0 +1,106 @@
+Detailed Document on this topic here: https://docs.google.com/document/d/1lqDVJCif4OTDgDhnKFSbT_WcH5pj1eXwzzwguFR_4qs
+
+Additionally here are some quick suggestions for better performance in TTI SP, especially when not using dedicated server mode and hosting on your own local PC
+
+Doing a handful of these or all of these will greatly improve performance. The main things that cause performance drops are:
+-Moving Ground Units
+-Search Radars
+-Search and detection scripts (JTAC autolasing)
+-Mass amount of active units in general
+
+*** Disable moving units
+
+- Turn off AI Troop Drop off
+
+- Turn off AI ground vehicle reinforcements (friendly)
+
+- Turn off AI ground vehicle reinforcements (enemy)
+
+- Turn off convoy mission (ground)
+convoy_missions_autostart = true/false
+
+- Turn off convoy mission (ships)
+a2g_ship_convoy_smm_enable = true/false
+ship_convoy_missions_autostart = true/false
+
+
+*** Only enable the missions you fly
+
+- Use single mission mode, 
+singleRandomMissionModeEnabled= true/false
+
+- Ensure the random mission types are the ones you desire 
+for single mission mode:
+
+a2g_easy_smm_enable = true/false
+a2g_hard_smm_enable = true/false
+a2g_sead_smm_enable= true/false
+a2g_helo_smm_enable = true/false
+a2g_inf_smm_enable = true/false
+a2g_convoy_smm_enable = true/false
+a2g_ship_convoy_smm_enable = true/false
+a2g_as_smm_enable = true/false
+
+- Only set few auto-spawn missions that you actually do
+a2g_easy_autostart = true/false
+a2g_hard_autostart = true/false
+a2g_sead_autostart= true/false
+a2g_helo_autostart = true/false
+a2g_helo_inf_autostart = true/false
+antiship_autostart= true/false
+
+
+- Use manually spawning mission. Nothing spawns unless you ask for it
+See above, set all to false
+
+
+*** Disable some or all of the RANDOM AIR TRAFFIC
+random_blue_large_civ_air_traffic = true/false
+random_blue_large_mil_air_traffic = true/false
+random_blue_fighter_air_traffic = true/false
+random_red_air_large_civ_traffic= true/false
+random_red_air_large_mil_traffic = true/false
+random_red_air_fighter_traffic = true/false
+
+
+*** Reduce the amount of units at each ground missions, especially search radars (SAMs)
+(values are the default ones)
+a2g_hard_misc = 13
+a2g_hard_aa = 3
+a2g_hard_sam_easy = 1
+a2g_hard_sam_hard = 1
+
+a2g_easy_misc = 13
+a2g_easy_aa = 0
+a2g_easy_sam_easy = 0
+a2g_easy_sam_hard = 0
+
+a2g_sead_misc = 0
+a2g_sead_aa = 2
+a2g_sead_sam_easy = 1
+a2g_sead_sam_hard = 2
+
+a2g_helo_misc = 10
+a2g_helo_aa = 2
+a2g_helo_sam_easy = 0
+a2g_helo_sam_hard = 0
+
+a2g_inf_troops = 37
+a2g_inf_misc = 4
+a2g_inf_aa = 0
+a2g_inf_sam_easy = 0
+a2g_inf_sam_hard = 0
+
+a2g_antiship = 2
+
+*** Disable default features you do not use
+
+- Airboss
+airboss_enable = true/false
+
+
+- ATIS
+atis_enable = true/false
+
+- Carrier Deck Statics that spawn in at mission start
+enable_sc_cvn_deck_template_on_start = true/false

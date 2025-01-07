@@ -1,0 +1,41 @@
+To edit and change TTI SP Mission settings via local files on your PC:
+
+Recommendation: Use Notepad++, VScode or other script editing software to open and edit the .lua files.
+
+Loading MISSION SETTINGS from SAVED GAMES FOLDER is entirely OPTIONAL. By default your mission settings will load from the mission settings in the TRIGGER LIST within the Mission Editor.
+
+1) Ensure that you MODIFY/EDIT the MissionScripting.lua to allow the DCS mission to read the "lfs" (local file system, which is your DCS Saved Games folder!
+- Go to your DCS Installation Folder\Scripts to find the MissionScripting.lua file
+- Open it to edit it and comment out (make the game ignore) line 18 which currently says: sanitizeModule('lfs') - You comment out by adding -- before the line so now it will look like this:
+--sanitizeModule('lfs')
+- Save the file and now the local files being read on mission load from your DCS Saved Games folder will now work! Note that this may have already been done since other similar dynamic missions
+require this setup.
+
+Detailed instructions on our documentation here: Document 03B
+https://docs.google.com/document/d/1ILao-lGugz-CZM_hVPQN0NP8mYIkEGUqIuIIbBFyKuU
+
+2) Within the MISSION EDITOR TRIGGER LIST - You must first change mission_settings_load_from = "missioneditor" to mission_settings_load_from ="savedgamesfolder"
+
+3) MOVE or COPY the "TTI SP Mission Settings" folder to your DCS Saved Games folder. Usually located here:
+C:\Users\YOUR USER NAME\Saved Games\DCS.openbeta\
+
+If you are using the DCS Stable build, or originally were using DCS Stable Build and converted to DCS Open Beta, then "DCS.openbeta" might just be "DCS".
+
+YOU SHOULD BE USING DCS OPEN BETA ANYWAY FOR TTI SP!!!!
+
+
+4) Edit your settings as desired. See documentation for details: https://drive.google.com/drive/folders/177ydPq1tJsOli7tKKKAuPxybfOw2yAo5
+
+5) Ensure that you MODIFY/EDIT the MissionScripting.lua to allow the DCS mission to read the "lfs" (local file system, which is your DCS Saved Games folder!
+- Go to your DCS Installation Folder\Scripts to find the MissionScripting.lua file
+- Open it to edit it and comment out (make the game ignore) line 18 which currently says: sanitizeModule('lfs') - You comment out by adding -- before the line so now it will look like this:
+--sanitizeModule('lfs')
+- Save the file and now the local files being read on mission load from your DCS Saved Games folder will now work! Note that this may have already been done since other similar dynamic missions
+require this setup.
+
+Detailed instructions on our documentation here: Document 03B
+https://docs.google.com/document/d/1ILao-lGugz-CZM_hVPQN0NP8mYIkEGUqIuIIbBFyKuU
+
+6) Save your edits once your are done. You DO NOT need to reload any scripts in the editor. You DO NOT need to RE-SAVE your mission, the settings will load when mission is LAUNCHED.
+
+7) LAUNCH your mission and enjoy!
