@@ -1,4 +1,43 @@
 -- Function to recursively search for all Link16 entries
+local function addGroupAndUnitPrefix(missionTable, coalitionSides, prefix)
+    if #coalitionSides == 0 then return end
+
+    local function renameSide(side)
+        local sideData = missionTable.coalition[side]
+        if sideData and sideData.country then
+            for _, c in ipairs(sideData.country) do
+                if c.plane and c.plane.group then
+                    for _, g in ipairs(c.plane.group) do
+                        g.name = prefix .. g.name
+                        for _, u in ipairs(g.units or {}) do
+                            u.name = prefix .. u.name
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local renameAll = false
+    for _, s in ipairs(coalitionSides) do
+        if s == "all" then
+            renameAll = true
+            break
+        end
+    end
+
+    if renameAll then
+        renameSide("red")
+        renameSide("blue")
+    else
+        for _, s in ipairs(coalitionSides) do
+            if s == "red" or s == "blue" then
+                renameSide(s)
+            end
+        end
+    end
+end
+
 function findAllLink16Entries(tbl, result)
     result = result or {}
     for key, value in pairs(tbl) do
@@ -131,6 +170,8 @@ for _, sideData in ipairs(allCoalitions) do
         end
     end
 end
+
+addGroupAndUnitPrefix(mission, {"all"}, "#")
 
 -- Сортируем смешанные группы по unitId
 local function sortUnitsById(units)

@@ -4,9 +4,7 @@ _SETTINGS:SetPlayerMenuOff()
 ----------------------------------------------------------------
 -- ПАРАМЕТРЫ
 ----------------------------------------------------------------
-local HELI_PREFIX         = "HELI_ASW"       -- Имя группы вертолёта (в Миссион Эдиторе)
 local SUB_PREFIX        = "BLUE_SM"        -- Префикс групп подводных лодок
-local CHECK_INTERVAL    = 10               -- Интервал (с) проверки в SCHEDULER
 local PASSIVE_BUOY_RADIUS = UTILS.NMToMeters(5)           -- Радиус пассивного буя
 local PASSIVE_SINGLE_PROB = 0.4            -- Базовая вероятность обнаружения одним пассивным буем
 local ACTIVE_SONAR_MAX_RANGE = UTILS.NMToMeters(15)        -- Максимальная эффективная дальность активного сонара (м)
@@ -14,6 +12,7 @@ local ACTIVE_SONAR_PROB = 0.8              -- Базовая вероятнос�
 local SIGNAL_TRAVEL_SPEED = 1500           -- Условная скорость распространения сигнала (м/с)
 local DOPPLER_FACTOR    = 0.5              -- Коэффициент влияния скорости субмарины (доплер)
 local SONAR_PING_INTERVAL = 15             -- Период «пингов» (если активный сонар включён)
+local PASSIVE_INTERVAL    = 10               -- Интервал (с) проверки в SCHEDULER
 local ALT_LIMIT         = 200              -- Макс. высота (м), на которой вертолёт может использовать сонар
 local SPEED_LIMIT       = 100              -- Макс. скорость (км/ч) для использования сонара
 local MULTIPLE_PASSIVE_MARKER_PROB = 0.6   -- Вероятность постановки маркера при обнаружении >=2 пассивными буями
@@ -22,121 +21,184 @@ local MULTIPLE_PASSIVE_MARKER_PROB = 0.6   -- Вероятность поста�
 ----------------------------------------------------------------
 -- Конфигурация буев (имя, тип, имя зоны, радиус)
 ----------------------------------------------------------------
-local Buoys = {
+-- local Buoys = {
   -- {
   --   name      = "PS_1",
   --   type      = "PASSIVE",
   --   zoneName  = "PS_1",
   --   zoneObj   = nil,
   --   radius    = UTILS.NMToMeters(10)
-  -- },
-  -- {
-  --   name      = "PS_2",
-  --   type      = "PASSIVE",
-  --   zoneName  = "PS_2",
-  --   radius    = UTILS.NMToMeters(10)
-  -- },
-  -- {
-  --   name      = "AS_1",
-  --   type      = "ACTIVE",
-  --   zoneName  = "AS_1",
-  --   radius    = UTILS.NMToMeters(15)
-  -- },
-  -- Добавляйте другие буи аналогично
-}
+  -- }
+-- }
 
 --------------------------------------------------------------------------------
 -- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 --------------------------------------------------------------------------------
 local Buoys = {}                 -- Список всех буев (пассивных)
 local ActiveSonarOn = false      -- Флаг включения активного сонара
-local heliGroupSet = SET_GROUP:New():FilterPrefixes(HELI_PREFIX):FilterStart()
+local RedHeliClients  = SET_CLIENT:New():FilterCoalitions("red"):FilterCategories("helicopter"):FilterStart()
+local HeliStates = {}
 local SubSet = SET_GROUP:New():FilterPrefixes(SUB_PREFIX):FilterStart()
 
 
+
+------------------------------------------------------------------------------
+-- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+------------------------------------------------------------------------------
+
+-- Создаём фигуру круга (или овала) вокруг координат
+local function DrawBuoyShape(buoyName, centerCoord, radius)
+  local shapeObj = OVAL:New(centerCoord:GetVec2(), radius, radius, 0)
+  shapeObj:Draw(0, nil)
+  return shapeObj
+end
+
 --------------------------------------------------------------------------------
--- ФУНКЦИЯ: СОЗДАТЬ ПАССИВНЫЙ БУЙ НА МЕСТЕ ВЕРТОЛЁТА
+-- ФУНКЦИИ-МЕНЮ (вызваются, когда пользователь нажимает пункт в F10)
 --------------------------------------------------------------------------------
-local function DeployPassiveBuoy(heliGroup)
-  if not heliGroup then return end
+
+-- Создать/сбросить пассивный буй
+local function DeployPassiveBuoy(Group, Client)
+  local cname     = Client:GetName()
+  local cgroup    = Client:GetGroup()
+  if not cgroup or not cgroup:IsAlive() then return end
   
-  -- Координаты вертолёта
-  local heliCoord = heliGroup:GetCoordinate()
+  -- Инициализируем состояние (если вдруг не было)
+  if not HeliStates[cname] then
+    HeliStates[cname] = {
+      ActiveSonarOn = false,
+      Buoys         = {}
+    }
+  end
   
-  -- Присваиваем уникальное имя буя
-  local buoyIndex = #Buoys + 1
-  local buoyName  = string.format("PassiveBuoy_%d", buoyIndex)
+  local state     = HeliStates[cname]
+  local heliCoord = cgroup:GetCoordinate()
   
-  -- Создаём виртуальную «зону» вокруг координат вертолёта
-  local zoneObj   = ZONE_RADIUS:New(buoyName, heliCoord:GetVec3(), PASSIVE_BUOY_RADIUS)
+  local buoyIndex = #state.Buoys + 1
+  local buoyName  = string.format("PassiveBuoy_%s_%d", cname, buoyIndex)
+
+  local zoneObj   = ZONE_RADIUS:New(buoyName, heliCoord:GetVec2(), PASSIVE_BUOY_RADIUS):DrawZone(cgroup:GetCoalition(), {1,0,0})
   
-  -- Сохраняем в таблице
-  table.insert(Buoys, {
-    name   = buoyName,
-    coords = heliCoord:GetCoordinate(),
-    zone   = zoneObj,
-    radius = PASSIVE_BUOY_RADIUS,
-    type   = "PASSIVE",
+  table.insert(state.Buoys, {
+    name     = buoyName,
+    zone     = zoneObj,
+    radius   = PASSIVE_BUOY_RADIUS,
+    type     = "PASSIVE"    
   })
-  heliCoord:CircleToAll(PASSIVE_BUOY_RADIUS, heliGroup:GetCoalition())
-  heliCoord:CircleToAll(100, heliGroup:GetCoalition())
+  
+  MESSAGE:New("Сброшен пассивный буй: " .. buoyName):ToClient(Client)
+end
 
-  MESSAGE:New("Развернут пассивный буй: "..buoyName):ToGroup(heliGroup)
+-- Включить активный сонар
+local function EnableActiveSonar(Group, Client)
+  local cname = Client:GetName()
+  if not HeliStates[cname] then
+    HeliStates[cname] = { ActiveSonarOn = false, Buoys = {} }
+  end
+  
+  HeliStates[cname].ActiveSonarOn = true
+  MESSAGE:New("Активный сонар включён"):ToClient(Client)
+end
+
+-- Выключить активный сонар
+local function DisableActiveSonar(Group, Client)
+  local cname = Client:GetName()
+  if HeliStates[cname] then
+    HeliStates[cname].ActiveSonarOn = false
+    MESSAGE:New("Активный сонар отключён"):ToClient(Client)
+  end
 end
 
 --------------------------------------------------------------------------------
--- ФУНКЦИИ ВКЛ./ВЫКЛ. АКТИВНОГО СОНАРА
+-- CLIENTMENU_MANAGER: Создаём меню для всех "RedHeliClients"
 --------------------------------------------------------------------------------
-local function EnableActiveSonar(heliGroup)
-  ActiveSonarOn = true
-  MESSAGE:New("Активный сонар включён"):ToGroup(heliGroup)
-end
+local RedMenuManager = CLIENTMENUMANAGER:New(RedHeliClients, "Sonar")
 
-local function DisableActiveSonar(heliGroup)
-  ActiveSonarOn = false
-  MESSAGE:New("Активный сонар отключён"):ToGroup(heliGroup)
-end
+-- Создаём корневое подменю
+local mainSubMenu = RedMenuManager:NewEntry("Sonar Menu")
+
+-- Добавляем команды:
+--   :AddCommandForEach(MenuText, ParentMenu, FunctionCallback, ArgumentForFunction, ...)
+--   Функция коллбэка получает (Menu, Client) в качестве аргументов
+RedMenuManager:NewEntry("Сбросить пассивный буй", mainSubMenu, DeployPassiveBuoy)
+RedMenuManager:NewEntry("Включить активный сонар", mainSubMenu, EnableActiveSonar)
+RedMenuManager:NewEntry("Выключить активный сонар", mainSubMenu, DisableActiveSonar)
+RedMenuManager:Propagate()
+RedMenuManager:InitAutoPropagation()
 
 --------------------------------------------------------------------------------
--- ОСНОВНАЯ ФУНКЦИЯ ПРОВЕРКИ (РАЗ В CHECK_INTERVAL СЕК)
+-- ОБРАБОТЧИК СОБЫТИЙ (Birth, Dead, Crash, PlayerLeaveUnit)
+-- для инициализации/удаления состояния
 --------------------------------------------------------------------------------
--- Здесь обрабатываем логику пассивных и (при включении) активного сонаров
---------------------------------------------------------------------------------
-local function CheckSubDetection(Object, heliGroup)
+local EventHandler = EVENTHANDLER:New()
 
-  ------------------------------------------------------------------------------
-  -- СНАЧАЛА ПРОВЕРЯЕМ УСЛОВИЯ ДЛЯ АКТИВНОГО СОНАРА (скорость / высота)
-  ------------------------------------------------------------------------------
-  if ActiveSonarOn and heliGroup then
-    local heliSpeed = heliGroup:GetVelocityKMH() or 0
-    local heliAlt   = heliGroup:GetAltitude()    or 0 -- барометрическая или можно AGL
-    
-    if (heliSpeed > SPEED_LIMIT) or (heliAlt > ALT_LIMIT) then
-      -- Превышили лимиты — отключаем
-      DisableActiveSonar()
-      MESSAGE:New(
-        string.format(
-          "Активный сонар отключён!\nПревышены лимиты: скорость=%.1f (>%d), высота=%.1f (>%d)",
-          heliSpeed, SPEED_LIMIT, heliAlt, ALT_LIMIT
-        )
-      ):ToGroup(heliGroup)
+-- Инициализация состояния
+local function InitClientState(client)
+  if client then
+    local cname = client:GetName()
+    if not HeliStates[cname] then
+      HeliStates[cname] = {
+        ActiveSonarOn = false,
+        Buoys         = {}
+      }
     end
   end
+end
 
-   ------------------------------------------------------------------------------
-  -- ДЛЯ КАЖДОЙ СУБМАРИНЫ
-  ------------------------------------------------------------------------------
+local function RemoveClientState(unitName)
+  if HeliStates[unitName] then
+    -- Удаляем Shape-объекты
+    for _, buoy in ipairs(HeliStates[unitName].Buoys) do
+      if buoy.shapeObj then
+        buoy.shapeObj:Remove()
+      end
+    end
+    HeliStates[unitName] = nil
+  end
+end
+
+function EventHandler:OnEventBirth(EventData)
+  if EventData.IniPlayerName then
+    local unitName = EventData.IniUnitName
+    local client = CLIENT:FindByName(unitName)
+    if client then
+      InitClientState(client)
+    end
+  end
+end
+
+function EventHandler:OnEventDead(EventData)
+  if EventData.IniPlayerName then
+    RemoveClientState(EventData.IniUnitName)
+  end
+end
+
+function EventHandler:OnEventCrash(EventData)
+  if EventData.IniPlayerName then
+    RemoveClientState(EventData.IniUnitName)
+  end
+end
+
+function EventHandler:OnEventPlayerLeaveUnit(EventData)
+  if EventData.IniPlayerName then
+    RemoveClientState(EventData.IniUnitName)
+  end
+end
+
+EventHandler:HandleEvent(EVENTS.Birth, EVENTS.Dead, EVENTS.Crash, EVENTS.PlayerLeaveUnit)
+
+----------------------------------------------------------------
+-- 1) ПАССИВНОЕ ОБНАРУЖЕНИЕ
+----------------------------------------------------------------
+local function PassiveCheck()
   for _, subGroup in pairs(SubSet:GetSet()) do
     local subCoord = subGroup:GetCoordinate()
-    local subSpeed = subGroup:GetVelocityKMH() or 0
-    
-    ----------------------------------------------------------------------------
-    -- 1) ПАССИВНЫЕ БУИ: СЛОЖЕНИЕ ВЕРОЯТНОСТЕЙ
-    ----------------------------------------------------------------------------
     local passiveCount = 0
+    
+    -- Считаем, сколько пассивных буев «слышит» субмарину
     for _, buoy in ipairs(Buoys) do
       if buoy.type == "PASSIVE" then
-        local dist = UTILS.VecDist2D(subCoord:GetVec2(), buoy.coords:GetVec2())
+        local dist = subCoord:Get2DDistance(buoy.zone:GetCoordinate())
         if dist <= buoy.radius then
           passiveCount = passiveCount + 1
         end
@@ -146,83 +208,102 @@ local function CheckSubDetection(Object, heliGroup)
     if passiveCount > 0 then
       local combinedProb = 1 - (1 - PASSIVE_SINGLE_PROB)^passiveCount
       if math.random() < combinedProb then
+        -- Сообщение для всех живых красных вертолётов
         local msg = string.format(
-          "\n\n\nПассивные буи обнаружили субмарину (%d буев).\nВероятность=%.2f",
-          passiveCount, combinedProb
+          "[ПАССИВНО] Обнаружена субмарина (%d буев).",
+          passiveCount
         )
-        MESSAGE:New(msg):ToAll()
         
-        -- Если >=2 буев, с вероятностью MULTIPLE_PASSIVE_MARKER_PROB ставим маркер
+        for _, clientData in pairs(RedHeliClients:GetSet()) do
+          local cgroup = clientData:GetGroup()
+          if cgroup and cgroup:IsAlive() then
+            MESSAGE:New(msg):ToGroup(cgroup)
+          end
+        end
+        
+        -- Если буев >=2, ставим маркер
         if passiveCount > 1 and math.random() < MULTIPLE_PASSIVE_MARKER_PROB then
-          local marker = MARKER:New(subCoord, "Пассивное обнаружение (триангуляция)"):ToAll()
-          marker:Remove(CHECK_INTERVAL) -- Удаляем через цикл планировщика
+          local marker = MARKER:New(subCoord, "Пассивное обнаружение"):ToAll()
+          marker:Remove(PASSIVE_INTERVAL)
         end
       end
     end
-      ----------------------------------------------------------------------------
-    -- 2) АКТИВНЫЙ СОНАР (если включён)
-    --    Каждые SONAR_PING_INTERVAL секунд делаем «пинг»:
-    --    Для упрощения, проверяем прямо в этом же цикле (или можно отдельный таймер).
-    ----------------------------------------------------------------------------
-    if ActiveSonarOn and heliGroup then
-      -- Считаем время пути сигнала (туда-обратно)
-      local heliCoord = heliGroup:GetCoordinate()
-      local distance  = heliCoord:Get3DDistance(subCoord)
+  end
+end
+----------------------------------------------------------------
+-- 2) АКТИВНОЕ ОБНАРУЖЕНИЕ
+----------------------------------------------------------------
+local function ActiveCheck()
+  for _, clientData in pairs(RedHeliClients:GetSet()) do
+    local client   = clientData
+    local cgroup   = client:GetGroup()
+    if cgroup and cgroup:IsAlive() then
+      local cname = client:GetName()
+      local state = HeliStates[cname]
       
-      -- Если за пределами максимальной дистанции — не услышим
-      if distance <= ACTIVE_SONAR_MAX_RANGE then
-        local signalTime = (distance * 2) / SIGNAL_TRAVEL_SPEED
+      if state and state.ActiveSonarOn then
+        -- Проверяем лимиты
+        local heliSpeed = cgroup:GetVelocityKMH() or 0
+        local heliAlt   = cgroup:GetAltitude() or 0
         
-        -- Создаём отложенный вызов на "эхо"
-        SCHEDULER:New(nil, function()
-          -- Учитываем доплер
-          local dopplerAdjustment = 1 - (subSpeed * DOPPLER_FACTOR / 100)
-          if dopplerAdjustment < 0 then dopplerAdjustment = 0 end
-          
-          local distFactor = 1 - (distance / ACTIVE_SONAR_MAX_RANGE)
-          local detectProb = ACTIVE_SONAR_PROB * dopplerAdjustment * distFactor
-          
-          if math.random() < detectProb then
-            local bearing = UTILS.HdgTo(heliCoord:GetVec3(), subCoord:GetVec3())
-            local msg = string.format(
-              "АКТИВНЫЙ СОНАР: контакт!\n" ..
-              "Дальность=%.0f м\nПеленг=%d°\nСкорость цели=%.1f км/ч",
-              distance, math.floor(bearing), subSpeed
+        if heliSpeed > SPEED_LIMIT or heliAlt > ALT_LIMIT then
+          state.ActiveSonarOn = false
+          MESSAGE:New(
+            string.format(
+              "Сонар %s отключен! Превышен лимит (V=%.1f / H=%.0f)",
+              cname, heliSpeed, heliAlt
             )
-            MESSAGE:New(msg):ToAll()
+          ):ToGroup(cgroup)
+        else
+          -- Собираем инфо об обнаруженных субмаринах
+          local foundSubs = {}
+          local heliCoord = cgroup:GetCoordinate()
+          
+          for _, subGroup in pairs(SubSet:GetSet()) do
+            local subCoord = subGroup:GetCoordinate()
+            local subSpeed = subGroup:GetVelocityKMH() or 0
+            local distance = heliCoord:Get3DDistance(subCoord)
             
-            -- Ставим маркер при обнаружении
-            local marker = MARKER:New(subCoord, "Активное обнаружение"):ToAll()
-            marker:Remove(CHECK_INTERVAL)
-          else
-            -- Можно выводить/не выводить сообщение об отсутствии эха
-            MESSAGE:New("Активный сонар: эхо не распознано..."):ToGroup(heliGroup)
+            if distance <= ACTIVE_SONAR_MAX_RANGE then
+              -- Пример упрощённой вероятности (без задержки эха)
+              local dopplerAdj = 1 - (subSpeed * DOPPLER_FACTOR / 100)
+              if dopplerAdj < 0 then dopplerAdj = 0 end
+              
+              local distFactor = 1 - (distance / ACTIVE_SONAR_MAX_RANGE)
+              local detectProb = ACTIVE_SONAR_PROB * dopplerAdj * distFactor
+              
+              if math.random() < detectProb then
+                local bearing = UTILS.HdgTo(heliCoord:GetVec3(), subCoord:GetVec3())
+                table.insert(foundSubs, {
+                  name     = subGroup:GetName(),
+                  distance = distance,
+                  bearing  = math.floor(bearing),
+                  speed    = subSpeed
+                })
+                local marker = MARKER:New(subCoord, "Активное обнаружение (".. subGroup:GetName() ..")"):ToAll()
+                marker:Remove(SONAR_PING_INTERVAL)
+              end
+            end
           end
-        end, {}, signalTime)
+          
+          if #foundSubs > 0 then
+            local msg = string.format("АКТИВНЫЙ сонар %s:\nОбнаружено целей: %d\n", cname, #foundSubs)
+            for _, subInfo in ipairs(foundSubs) do
+              msg = msg .. string.format(
+                "- %s: Д=%.0f м, П=%d°, V=%.1f\n",
+                subInfo.name, subInfo.distance, subInfo.bearing, subInfo.speed
+              )
+            end
+            MESSAGE:New(msg):ToGroup(cgroup)
+          end
+        end
       end
     end
   end
 end
 
---------------------------------------------------------------------------------
--- ЗАПУСК ЕДИНОГО ПЛАНИРОВЩИКА
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
--- СОЗДАНИЕ МЕНЮ ДЛЯ ВЕРТОЛЁТА
---------------------------------------------------------------------------------
-local mainMenu = nil
-
-for _, heliGroup in pairs(heliGroupSet:GetSet()) do
-  if heliGroup then
-    mainMenu = MENU_GROUP:New(heliGroup, "ASW System")
-  end
-
-  if mainMenu then
-    MENU_GROUP_COMMAND:New(heliGroup, "Развернуть пассивный буй", mainMenu, DeployPassiveBuoy, {heliGroup})
-    MENU_GROUP_COMMAND:New(heliGroup, "Включить активный сонар", mainMenu, EnableActiveSonar, {heliGroup})
-    MENU_GROUP_COMMAND:New(heliGroup, "Выключить активный сонар", mainMenu, DisableActiveSonar, {heliGroup})
-  end
-  
-  SCHEDULER:New(heliGroup, CheckSubDetection(Object, heliGroup), {heliGroup}, 0, CHECK_INTERVAL) 
-end
-
+----------------------------------------------------------------
+-- ЗАПУСК ДВУХ ПЛАНИРОВЩИКОВ
+----------------------------------------------------------------
+SCHEDULER:New(nil, PassiveCheck, {}, 0, PASSIVE_INTERVAL)
+SCHEDULER:New(nil, ActiveCheck,  {}, 0, SONAR_PING_INTERVAL)

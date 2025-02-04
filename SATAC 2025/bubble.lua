@@ -51,10 +51,10 @@ The line ends with timecode (time since start of the mission).
 ]]
 
 -- you can edit these variables
-local warningSound = "Alarm.ogg";  -- filename for warning message sound
-local infoSound = "top-gun-bell.ogg";   -- filename for info message sound
-local innerZone = "innerzone";  -- ME name for inner bubble trigger zone
-local outerZone = "outerzone";  -- ME name for outer bubble trigger zone
+local warningSound = "warning.wav";  	-- filename for warning message sound
+local infoSound = "info.wav";   		-- filename for info message sound
+local innerZone = "Inner Bubble";  		-- ME name for inner bubble trigger zone
+local outerZone = "Outer Bubble";  		-- ME name for outer bubble trigger zone
 
 
 -- non-editable variables
