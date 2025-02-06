@@ -2,6 +2,7 @@
 
 -- Определяем радиус зоны SATAC в морских милях
 local SATAC_Zone_Radius = 30  -- Установите желаемый радиус в морских милях
+local SATAC_Zone = nil
 
 -- Создаём зону на основе статического объекта "SATAC_Center"
 local centerStatic = StaticObject.getByName("SATAC_Center")
@@ -16,8 +17,8 @@ else
 end
 
 -- Создание наборов групп для каждой коалиции
-redPlayerSet = SET_GROUP:New():FilterCoalitions("red"):FilterStart()
-bluePlayerSet = SET_GROUP:New():FilterCoalitions("blue"):FilterStart()
+redPlayerSet = SET_GROUP:New():FilterCoalitions("red"):FilterPrefixes({"fox"}):FilterStart()
+bluePlayerSet = SET_GROUP:New():FilterCoalitions("blue"):FilterPrefixes({"fox"}):FilterStart()
 
 -- Инициализация переменных для отслеживания состояния игры
 local gameActive = true
@@ -259,6 +260,7 @@ local function CheckGroupsInZone()
                             10, 
                             group:GetUnits()[1]:GetName(),
                             "OutsideWarning_" .. groupName)
+                            USERSOUND:New("warning.wav"):ToGroup(GROUP:FindByName( groupName ))
                         end
                     else
                         -- Отправляем сообщение группе
@@ -267,12 +269,11 @@ local function CheckGroupsInZone()
                             10, 
                             group:GetUnits()[1]:GetName(),
                             "OutsideWarning_" .. groupName)
+                            USERSOUND:New("warning.wav"):ToGroup(GROUP:FindByName( groupName ))
                         end
                         if timer.getTime() >= groupsOutsideZone[groupName] then
-                            group:Explode(100)
-                            SendMessageToParticipants(group:GetUnits()[1]:GetClient() .. " не вернулся в зону и был уничтожен!", 10)
+                            group:Explode(100)                            
                             groupsOutsideZone[groupName] = nil
-                            mist.message.removeByName("OutsideWarning_" .. groupName)
                         end
                     end
                 end
@@ -293,7 +294,8 @@ local function CheckGroupsInZone()
                             SendMessageToParticipants(string.format("%s покинул зону. У него есть %i секунд, чтобы вернуться!", group:GetUnits()[1]:GetPlayerName(), groupsOutsideZone[groupName] - timer.getTime()), 
                             10, 
                             group:GetUnits()[1]:GetName(),
-                            "OutsideWarning_" .. groupName)                        
+                            "OutsideWarning_" .. groupName)     
+                            USERSOUND:New("warning.wav"):ToGroup(GROUP:FindByName( groupName ))                   
                         end
                     else
                         -- Отправляем сообщение группе
@@ -302,10 +304,10 @@ local function CheckGroupsInZone()
                             10, 
                             group:GetUnits()[1]:GetName(),
                             "OutsideWarning_" .. groupName)
+                            USERSOUND:New("warning.wav"):ToGroup(GROUP:FindByName( groupName))
                         end
                         if timer.getTime() >= groupsOutsideZone[groupName] then
                             group:Explode(100)
-                            SendMessageToParticipants(group:GetUnits()[1]:GetPlayerName() .. " не вернулся в зону и был уничтожен!", 10)
                             groupsOutsideZone[groupName] = nil
                         end
                     end
@@ -403,7 +405,7 @@ function EnableAllAWACS()
 end
 
 -- Функция для перезапуска миссии
-function RestartMissionDay()
+function RestartMission()
     -- Отправляем сообщение всем игрокам
     MESSAGE:New("Миссия будет перезапущена через 10 секунд.", 10):ToAll()
 
@@ -413,19 +415,19 @@ function RestartMissionDay()
     end):Start(10)
 end
 
-function RestartMissionNight()
-    -- Отправляем сообщение всем игрокам
-    MESSAGE:New("Миссия будет перезапущена через 10 секунд.", 10):ToAll()
-
-    -- Задержка перед перезапуском миссии
-    TIMER:New(function()
-        trigger.action.setUserFlag("9002", true)
-    end):Start(10)
+function SetZoneRadius(radius)
+    SATAC_Zone_Radius = radius
+    SATAC_Zone:UndrawZone()
+    SATAC_Zone:SetRadius(UTILS.NMToMeters(SATAC_Zone_Radius))
+    SATAC_Zone:DrawZone(-1, {1,0,0})
+    MESSAGE:New("Радиус зоны SATAC установлен в ".. radius .." морских миль.", 10):ToAll()
 end
 
 -- Создание меню управления миссией
 CommandMenu = MENU_MISSION:New("Управление миссией")
 DisableAWACSCommand = MENU_MISSION_COMMAND:New("Убрать AWACS", CommandMenu, DisableAllAWACS)
 EnableAWACSCommand = MENU_MISSION_COMMAND:New("Влючить AWACS", CommandMenu, EnableAllAWACS)
-RestartMissionDayCommand = MENU_MISSION_COMMAND:New("Перезапуск миссии - день", CommandMenu, RestartMissionDay)
-RestartMissionNightCommand = MENU_MISSION_COMMAND:New("Перезапуск миссии - ночь", CommandMenu, RestartMissionNight)
+EnableAWACSCommand = MENU_MISSION_COMMAND:New("Зона - 30", CommandMenu, SetZoneRadius, 15)
+EnableAWACSCommand = MENU_MISSION_COMMAND:New("Зона - 60", CommandMenu, SetZoneRadius, 30)
+RestartMissionDayCommand = MENU_MISSION_COMMAND:New("Перезапуск миссии", CommandMenu, RestartMission)
+
