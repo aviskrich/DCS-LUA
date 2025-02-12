@@ -1,0 +1,5 @@
+describe("Hello World", function()
+    it("should return 'Hello, World!'", function()
+        assert.is.equal(hello_world(), "Hello, World!")
+    end)
+end)
