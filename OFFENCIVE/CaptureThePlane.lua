@@ -8,9 +8,14 @@ local redFlag = nil
 -- Захваченный флаг (самолет) должен вернуться на свою сторону (точка возврата)
 -- Потерянный флаг (самолет) становится в режиме круговой орбиты на высоте 25 тыс футов и скоростью 300 узлов
 
+local redFighters = SET_UNIT:New():FilterPrefixes("RedFighter"):FilterStart()
+
+local redReturnZone = ZONE:FindByName("RedReturnZone")
+local blueReturnZone = ZONE:FindByName("BlueReturnZone")
+
 -- Переменные для хранения точек возврата
-local blueFlagReturnPoint = nil
-local redFlagReturnPoint = nil
+local blueFlagReturnPoint = blueReturnZone:GetPointVec2()
+local redFlagReturnPoint = redReturnZone:GetPointVec2()
 
 -- Переменные для хранения точек орбиты
 local blueFlagOrbitPoint = nil

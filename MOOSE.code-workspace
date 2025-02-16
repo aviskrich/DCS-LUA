@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"name": "MOOSE",
+			"path": "../../Libs/MOOSE/MOOSE"
+		},
+		{
+			"path": "../../Libs/MIST"
+		},
+		{
+			"name": "DCS-LUA",
+			"path": "."
+		}
+	],
+	"settings": {
+		"emmylua.ls.start_parameters": []
+	}
+}
