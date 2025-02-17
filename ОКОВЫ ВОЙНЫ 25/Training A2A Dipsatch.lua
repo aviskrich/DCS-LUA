@@ -13,11 +13,11 @@ local DetectionSetGroup = SET_GROUP:New():FilterPrefixes( { "IRAN AWACS", "IRAN 
 local Detection = DETECTION_AREAS:New( DetectionSetGroup, 30000 )
 
 -- Setup the A2A dispatcher, and initialize it.
-A2ADispatcher = AI_A2A_DISPATCHER:New( Detection )
+A2ADispatcher = AI_A2A_DISPATCHER:New( Detection ) --[[@as AI_A2A_DISPATCHER]]
 A2ADispatcher:SetCommandCenter( HQ_CC )
 
 -- Enable the tactical display panel.
-A2ADispatcher:SetTacticalDisplay( false )
+A2ADispatcher:SetTacticalDisplay( true )
 A2ADispatcher:SetTacticalMenu( "Dispatchers", "A2A" )
 
 -- Initialize the dispatcher, setting up a border zone. This is a polygon, 
@@ -28,7 +28,7 @@ A2ADispatcher:SetBorderZone( IRANBorderZone )
 
 -- Initialize the dispatcher, setting up a radius of 100km where any airborne friendly 
 -- without an assignment within 100km radius from a detected target, will engage that target.
-A2ADispatcher:SetEngageRadius( 200000 )
+A2ADispatcher:SetEngageRadius( 150000 )
 
 -- Setup the squadrons.
 A2ADispatcher:SetSquadron( "Qeshm", AIRBASE.PersianGulf.Qeshm_Island, { "SQ IRAN MIG29A" }, 8 )
@@ -80,6 +80,11 @@ A2ADispatcher:SetSquadronRadioFrequency( "Abbas", 127.5 )
 A2ADispatcher:SetSquadronRadioFrequency( "Qeshm", 127.5 )
 A2ADispatcher:SetSquadronRadioFrequency( "Lengeh", 127.5 )
 
+A2ADispatcher:SetDefaultFuelThreshold( 0.8 )
+A2ADispatcher:SetSquadronTanker("Lengeh", "TANKER Lengeh")
+A2ADispatcher:SetSquadronTanker("Qeshm", "TANKER Abbas")
+A2ADispatcher:SetSquadronTanker("Abbas", "TANKER Abbas")
+
 
 -- Set the squadrons visible before startup.
 --A2ADispatcher:SetSquadronVisible( "Mineralnye" )
@@ -93,31 +98,31 @@ A2ADispatcher:SetSquadronRadioFrequency( "Lengeh", 127.5 )
 
 
 -- Blue attack simulation
--- local Frequency = 300
+local Frequency = 300
 
--- BlueSpawn1 = SPAWN
---   :New( "RT NATO #1" )
---   :InitLimit( 2, 10 )
---   :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
---   :InitRandomizeRoute( 0, 0, 30000 )
---   --:InitDelayOn()
---   :SpawnScheduled( Frequency, 0.4 )
+BlueSpawn1 = SPAWN
+  :New( "RT NATO #1" )
+  :InitLimit( 1, 10 )
+  :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
+  :InitRandomizeRoute( 0, 0, 30000 )
+  --:InitDelayOn()
+  :SpawnScheduled( Frequency, 0.4 )
 
--- BlueSpawn2 = SPAWN
---   :New( "RT NATO #2" )
---   :InitLimit( 2, 10 )
---   :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
---   :InitRandomizeRoute( 0, 0, 30000 )
---   --:InitDelayOn()
---   :SpawnScheduled( Frequency, 0.4 )
+BlueSpawn2 = SPAWN
+  :New( "RT NATO #2" )
+  :InitLimit( 1, 10 )
+  :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
+  :InitRandomizeRoute( 0, 0, 30000 )
+  --:InitDelayOn()
+  :SpawnScheduled( Frequency, 0.4 )
 
--- BlueSpawn3 = SPAWN
---   :New( "RT NATO #3" )
---   :InitLimit( 2, 10 )
---   :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
---   :InitRandomizeRoute( 0, 0, 30000 )
---   --:InitDelayOn()
---   :SpawnScheduled( Frequency, 0.4 )
+BlueSpawn3 = SPAWN
+  :New( "RT NATO #3" )
+  :InitLimit( 1, 10 )
+  :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
+  :InitRandomizeRoute( 0, 0, 30000 )
+  --:InitDelayOn()
+  :SpawnScheduled( Frequency, 0.4 )
 
 -- BlueSpawn4 = SPAWN
 --   :New( "RT NATO 4" )
