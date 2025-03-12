@@ -1,4 +1,5 @@
--- Last update: 2021.10.10 20:00:00 MSK
+---@diagnostic disable: undefined-global
+-- Last update: 2025.03.12 10:00:00 MSK
 --------------------------------------------------------------------------------------------------------------------------
 --BASE:TraceClass("SPAWNSTATIC")
 --BASE:TraceLevel(3)
@@ -29,12 +30,13 @@ function CreateSupply(object)
         --if zone.side ~= coalition.side.BLUE then MESSAGE:New('Невозможно', 20):ToUnit(unit) return false end
         --if object.type.payload ~= nil and zone.isHub == false then MESSAGE:New('Тут нельзя запросить груз', 20):ToUnit(unit) return false end
         SpawnCargo(unit, object.type, object.type.value, unit:GetCoordinate(), unit:GetHeading())
-        break
+        return true
       end
     end
 
     -- если добрались сюда, то что-то пошло не так
     MESSAGE:New('Тут нельзя запросить груз', 20):ToUnit(unit)
+    return false
 end
 
 function CalculateMass(unit)
@@ -74,7 +76,7 @@ function LoadCargo(unit)
     if unit:InAir(true) then MESSAGE:New('Погрузка в воздухе недопустима!', 20):ToUnit(unit) return nil end
     if closestCargo == nil then MESSAGE:New('Нечего загружать', 20):ToUnit(unit) end
   
-    if (closestCargo)then
+    if (closestCargo) then
       unit:AddCargo(closestCargo)
       MESSAGE:New('Погружено ' ..closestCargo.type.nameText..' '..closestCargo.weight..'кг.', 20):ToUnit(unit)
       closestCargo:Destroy(false)
@@ -93,14 +95,14 @@ function GetCargoInRange(pointVec2, range)
     if (range == nil) then range = 30 end
     local cargoInRange = {}
     local closestCargo = nil
-    local distance = nil
+    local distance = math.huge
     
     set_cargo:ForEach(function(cargo)
       if (cargo.weight ~= nil) then
         local _distance = pointVec2:DistanceFromPointVec2(cargo:GetPointVec2())
-        if distance < range then
+        if _distance < range then
             table.insert(cargoInRange, cargo)
-            if (distance < distance) then
+            if (_distance < distance) then
                 closestCargo = cargo
                 distance = _distance
             end
@@ -178,17 +180,6 @@ function UnloadCargo(unit)
         break
     end
 end
-
--- RecalculateCoordinates = function(originalA, newA, groupCoords)
---     local dx = newA:GetX() - originalA:GetX()
---     local dy = newA:GetY() - originalA:GetY()  -- horizontal plane uses x/y in POINT_VEC2
---     local newGroupCoords = {}
---     for name, object in pairs(groupCoords) do
---         local staticObject = STATIC:FindByName(object.SpawnTemplatePrefix)
---         newGroupCoords[name] = POINT_VEC2:New(staticObject:GetPointVec2():GetX() + dx, staticObject:GetPointVec2():GetY() + dy)
---     end
---     return newGroupCoords
---   end
 
 local counter = 10
 function NameGenerator(name, locCounter)    
@@ -279,7 +270,7 @@ function UnpackCargo(unit)
                 MESSAGE:New('Невозможно создать больше фарпов', 20):ToUnit(unit)
                 return false
             elseif closestZoneRange < 20000 then
-                MESSAGE:New('Слишком близко к аэродрому или FARP-у', 20):ToUnit(unit)
+                MESSAGE:New(string.format('Слишком близко к аэродрому или FARP-у (%.2f из %.2f км)', closestZoneRange/1000, 20), 20):ToUnit(unit)
                 return false
             end
             
@@ -295,7 +286,7 @@ function UnpackCargo(unit)
             local ADFName = closestCargo.type.cargoType ..  "ADF " .. tostring(ADF).."KHz"
             table.remove(freeADFFrequencies, 1)                                    
             trigger.action.radioTransmission("l10n/DEFAULT/beacon.ogg", closestCargo:GetVec3(), 0, true, ADF*1000, 250, ADFName)            
-            MARKER:New(closestCargo:GetCoordinate(), "ФАРП: ".."ADF " .. tostring(ADF).."KHz"):ToCoalition(unit:GetDCSObject():getCoalition())
+            MARKER:New(closestCargo:GetCoordinate(), string.format("ФАРП: ADF %sKHz", tostring(ADF))):ToCoalition(unit:GetDCSObject():getCoalition())
             
             -- Создаем статики
             counter = counter + 1
@@ -446,14 +437,14 @@ function GetFARPList(unit)
     for _, farp in pairs(FARPs) do
         -- Ищем соответствующий статический объект
         local static = STATIC:FindByName(farp:GetName())
-        
-        if static then
+        if static and (farp:GetName() ~= CARGOSTATIC.RED.CRATEFARP.constructionSpawner.spawnFarp.SpawnTemplatePrefix and 
+                       farp:GetName() ~= CARGOSTATIC.BLUE.CRATEFARP.constructionSpawner.spawnFarp.SpawnTemplatePrefix) then
             -- Если у объекта есть частота ADF, добавляем информацию в сообщение
             if static.ADFFreq then
                 str = str .. string.format("ФАРП: %s (ADF %d KHz)\n", farp:GetName(), static.ADFFreq)
             else
                 str = str .. string.format("ФАРП: %s (без маяка)\n", farp:GetName())
-            end
+            end        
         end
     end
     
