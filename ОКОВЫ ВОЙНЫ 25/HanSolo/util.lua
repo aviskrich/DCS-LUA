@@ -322,7 +322,7 @@ CARGOUNITS = {
       spawner = SPAWNSTATIC:NewFromStatic("KC19CARGORED", country.id.CJTF_RED), -- спаунер коробки (точное наименование статика для коробки)
       spawnerUnit = SPAWN:New("KC19RED"):InitLimit( 4, 0 ), -- спаунер техиники (точное наименование группы)
       nameText = "Орудие КС-19", -- Название (для меню)
-      value = 6000, -- Вес
+      value = 9000, -- Вес
       static = true,
     },
     CRATEREARM = {
@@ -373,7 +373,7 @@ CARGOUNITS = {
       spawner = SPAWNSTATIC:NewFromStatic("KC19CARGOBLUE", country.id.CJTF_BLUE), -- спаунер коробки (точное наименование статика для коробки)
       spawnerUnit = SPAWN:New("KC19BLUE"):InitLimit( 4, 0 ), -- спаунер техиники (точное наименование группы)
       nameText = "Орудие КС-19", -- Название (для меню)
-      value = 6000, -- Вес
+      value = 9000, -- Вес
       static = true,
     },
     CRATEREARM = {
