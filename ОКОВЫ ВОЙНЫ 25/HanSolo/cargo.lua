@@ -420,11 +420,8 @@ function RestartMission()
 end
 
 function GetFARPList(unit)
-    -- Получаем коалицию юнита
-    local coalition = unit:GetCoalition()
-    
     -- Получаем все ФАРПы для данной коалиции
-    local FARPs = AIRBASE.GetAllAirbases(coalition, Airbase.Category.HELIPAD)
+    local FARPs = AIRBASE.GetAllAirbases(unit:GetCoalition(), Airbase.Category.HELIPAD)
     
     if #FARPs == 0 then
         MESSAGE:New("ФАРПы не обнаружены", 20):ToUnit(unit)
