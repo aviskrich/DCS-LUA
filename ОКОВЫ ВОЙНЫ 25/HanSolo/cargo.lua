@@ -496,6 +496,6 @@ function SpawnUser:OnEventPlayerEnterAircraft(EventData)
     end
 end
 
-_SETTINGS:SetPlayerMenuOff()
+_SETTINGS:SetPlayerMenuOff() -- НЕ УДАЛЯТЬ!!! 
 local missionMenu = MENU_MISSION:New("Управление миссией")
         MENU_MISSION_COMMAND:New("Перезапустить миссию", missionMenu, RestartMission)
