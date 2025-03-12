@@ -29,7 +29,7 @@ local msrs = MSRS:New()
 msrs:SetBackendSRSEXE()
 msrs:SetProvider(MSRS.Provider.GOOGLE)
 msrs:SetFrequencies(251)
-msrs:setCulture("ar-XA")
+msrs:setCulture("en-US")
 
 local fileName = "Hello-world.txt"
 local folderPath = lfs.writedir() .. 'Missions'

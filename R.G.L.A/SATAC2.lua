@@ -16,8 +16,8 @@ else
 end
 
 -- Создание наборов групп для каждой коалиции
-redPlayerSet = SET_GROUP:New():FilterCoalitions("red"):FilterPrefixes({"=SATAC=", "Sochi", "Сочи"}):FilterStart()
-bluePlayerSet = SET_GROUP:New():FilterCoalitions("blue"):FilterPrefixes({"=SATAC=", "Mozdok", "Моздок"}):FilterStart()
+redPlayerSet = SET_GROUP:New():FilterCoalitions("red"):FilterPrefixes({"=SATAC=", "Sochi", "Сочи"}):FilterStart() --[[@class SET_GROUP]]
+bluePlayerSet = SET_GROUP:New():FilterCoalitions("blue"):FilterPrefixes({"=SATAC=", "Mozdok", "Моздок"}):FilterStart() --[[@class SET_GROUP]]
 
 -- Инициализация переменных для отслеживания состояния игры
 local gameActive = true

@@ -2,6 +2,8 @@
     "Lua.diagnostics.globals": [
         "airbase_blue_fighter_1",
         "mission",
-        "self"
+        "self",
+        "atisAlDhafra",
+        "_SETTINGS"
     ]
 }

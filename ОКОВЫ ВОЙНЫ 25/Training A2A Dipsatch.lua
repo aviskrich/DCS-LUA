@@ -3,8 +3,8 @@
 -- Author: FlightControl
 -- Date Created: 30 May 2017
 
-local HQ_Group = GROUP:FindByName( "HQ" )
-local HQ_CC = COMMANDCENTER:New( HQ_Group, "HQ" )
+local HQ_Group = GROUP:FindByName( "IRAN HQ" )
+local HQ_CC = COMMANDCENTER:New( HQ_Group, "IRAN HQ" )
 
 -- Define a SET_GROUP object that builds a collection of groups that define the EWR network.
 -- Here we build the network with all the groups that have a name starting with DF IRAN AWACS and DF IRAN EWR.
@@ -17,7 +17,7 @@ A2ADispatcher = AI_A2A_DISPATCHER:New( Detection ) --[[@as AI_A2A_DISPATCHER]]
 A2ADispatcher:SetCommandCenter( HQ_CC )
 
 -- Enable the tactical display panel.
-A2ADispatcher:SetTacticalDisplay( true )
+A2ADispatcher:SetTacticalDisplay( false )
 A2ADispatcher:SetTacticalMenu( "Dispatchers", "A2A" )
 
 -- Initialize the dispatcher, setting up a border zone. This is a polygon, 
@@ -33,7 +33,7 @@ A2ADispatcher:SetEngageRadius( 150000 )
 -- Setup the squadrons.
 A2ADispatcher:SetSquadron( "Qeshm", AIRBASE.PersianGulf.Qeshm_Island, { "SQ IRAN MIG29A" }, 8 )
 A2ADispatcher:SetSquadron( "Abbas", AIRBASE.PersianGulf.Bandar_Abbas_Intl, { "SQ IRAN F14B","SQ IRAN MIG29A" }, 10 )
-A2ADispatcher:SetSquadron( "Lengeh", AIRBASE.PersianGulf.Bandar_Lengeh, { "SQ IRAN F14B","SQ IRAN MIG29A" }, 6 )
+A2ADispatcher:SetSquadron( "Lengeh", AIRBASE.PersianGulf["Kerman"], { "SQ IRAN F14B","SQ IRAN MIG29A" }, 6 )
 
 -- Setup the overhead
 A2ADispatcher:SetSquadronOverhead( "Abbas", 1.2 )
@@ -56,8 +56,8 @@ A2ADispatcher:SetSquadronLanding( "Lengeh", AI_A2A_DISPATCHER.Landing.AtRunway )
 A2ADispatcher:SetSquadronLanding( "Abbas", AI_A2A_DISPATCHER.Landing.AtRunway )
 
 -- CAP Squadron execution.
-CAPZoneWest = ZONE_POLYGON:New( "CAP Zone West", GROUP:FindByName( "CAP Zone West" ) )
-A2ADispatcher:SetSquadronCap2( "Lengeh", 700, 2200, 1500, 14000, 'BARO', CAPZoneWest, 500, 800, 6000, 10000, 'BARO')
+-- CAPZoneWest = ZONE_POLYGON:New( "CAP Zone West", GROUP:FindByName( "CAP Zone West" ) )
+-- A2ADispatcher:SetSquadronCap2( "Lengeh", 700, 2200, 1500, 14000, 'BARO', CAPZoneWest, 500, 800, 6000, 10000, 'BARO')
 -- A2ADispatcher:SetSquadronCap( "Lengeh", CAPZoneWest, 4000, 8000, 600, 800, 800, 1200, "BARO" )
 -- A2ADispatcher:SetSquadronCapInterval( "Lengeh", 2, 30, 120, 1 )
 
@@ -80,8 +80,8 @@ A2ADispatcher:SetSquadronRadioFrequency( "Abbas", 127.5 )
 A2ADispatcher:SetSquadronRadioFrequency( "Qeshm", 127.5 )
 A2ADispatcher:SetSquadronRadioFrequency( "Lengeh", 127.5 )
 
-A2ADispatcher:SetDefaultFuelThreshold( 0.8 )
-A2ADispatcher:SetSquadronTanker("Lengeh", "TANKER Lengeh")
+A2ADispatcher:SetDefaultFuelThreshold( 0.3 )
+-- A2ADispatcher:SetSquadronTanker("Lengeh", "TANKER Lengeh")
 A2ADispatcher:SetSquadronTanker("Qeshm", "TANKER Abbas")
 A2ADispatcher:SetSquadronTanker("Abbas", "TANKER Abbas")
 
@@ -100,29 +100,29 @@ A2ADispatcher:SetSquadronTanker("Abbas", "TANKER Abbas")
 -- Blue attack simulation
 local Frequency = 300
 
-BlueSpawn1 = SPAWN
-  :New( "RT NATO #1" )
-  :InitLimit( 1, 10 )
-  :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
-  :InitRandomizeRoute( 0, 0, 30000 )
-  --:InitDelayOn()
-  :SpawnScheduled( Frequency, 0.4 )
+-- BlueSpawn1 = SPAWN
+--   :New( "RT NATO #1" )
+--   :InitLimit( 1, 10 )
+--   :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
+--   :InitRandomizeRoute( 0, 0, 30000 )
+--   --:InitDelayOn()
+--   :SpawnScheduled( Frequency, 0.4 )
 
-BlueSpawn2 = SPAWN
-  :New( "RT NATO #2" )
-  :InitLimit( 1, 10 )
-  :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
-  :InitRandomizeRoute( 0, 0, 30000 )
-  --:InitDelayOn()
-  :SpawnScheduled( Frequency, 0.4 )
+-- BlueSpawn2 = SPAWN
+--   :New( "RT NATO #2" )
+--   :InitLimit( 1, 10 )
+--   :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
+--   :InitRandomizeRoute( 0, 0, 30000 )
+--   --:InitDelayOn()
+--   :SpawnScheduled( Frequency, 0.4 )
 
-BlueSpawn3 = SPAWN
-  :New( "RT NATO #3" )
-  :InitLimit( 1, 10 )
-  :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
-  :InitRandomizeRoute( 0, 0, 30000 )
-  --:InitDelayOn()
-  :SpawnScheduled( Frequency, 0.4 )
+-- BlueSpawn3 = SPAWN
+--   :New( "RT NATO #3" )
+--   :InitLimit( 1, 10 )
+--   :InitRandomizeTemplate( { "SQ NATO F18", "SQ NATO F16" } )
+--   :InitRandomizeRoute( 0, 0, 30000 )
+--   --:InitDelayOn()
+--   :SpawnScheduled( Frequency, 0.4 )
 
 -- BlueSpawn4 = SPAWN
 --   :New( "RT NATO 4" )
