@@ -332,7 +332,7 @@ CARGOUNITS = {
       nameText = "Боеприпасы для техники", -- Название (для меню)
       value = 3000, -- Вес
       static = true,
-      unitLifetime = 10 -- 20 минут время жизни юнита
+      unitLifetime = 20*60 -- 20 минут время жизни юнита
     }
   },
   BLUE = {
@@ -383,7 +383,7 @@ CARGOUNITS = {
       nameText = "Боеприпасы для техники", -- Название (для меню)
       value = 3000, -- Вес
       static = true,
-      unitLifetime = 10 -- 20 минут время жизни юнита
+      unitLifetime = 20*60 -- 20 минут время жизни юнита
     }
   }
 }
