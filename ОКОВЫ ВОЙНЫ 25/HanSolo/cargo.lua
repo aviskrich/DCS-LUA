@@ -67,23 +67,7 @@ function SpawnCargo(unit, typeObject, weight, coordinate, heading, newName)
     return staticObj
 end
 
---- Возвращает ближайший груз к указанной точке.
--- @param pointVec2 Координаты Vec2, представляющие центральную точку поиска
--- @return STATIC, объект STATIC, представляющий ближайший груз к указанной точке
-function LoadCargo(unit)
-    local closestCargo = GetNearestCargo(unit:GetPointVec2())
-  
-    if unit:InAir(true) then MESSAGE:New('Погрузка в воздухе недопустима!', 20):ToUnit(unit) return nil end
-    if closestCargo == nil then MESSAGE:New('Нечего загружать', 20):ToUnit(unit) end
-  
-    if (closestCargo) then
-      unit:AddCargo(closestCargo)
-      MESSAGE:New('Погружено ' ..closestCargo.type.nameText..' '..closestCargo.weight..'кг.', 20):ToUnit(unit)
-      closestCargo:Destroy(false)
-      set_cargo:Remove(closestCargo:GetName())
-      CalculateMass(unit)
-    end
-end
+
 
 -- Выполняет поиск груза в указанном радиусе от заданной точки.given point.
 -- @param pointVec2 Координаты Vec2, представляющие центральную точку поиска
@@ -111,6 +95,24 @@ function GetCargoInRange(pointVec2, range)
     end)
     
     return cargoInRange, closestCargo, distance
+end
+
+--- Возвращает ближайший груз к указанной точке.
+-- @param pointVec2 Координаты Vec2, представляющие центральную точку поиска
+-- @return STATIC, объект STATIC, представляющий ближайший груз к указанной точке
+function LoadCargo(unit)
+    local _,closestCargo = GetCargoInRange(unit:GetPointVec2())
+  
+    if unit:InAir(true) then MESSAGE:New('Погрузка в воздухе недопустима!', 20):ToUnit(unit) return nil end
+    if closestCargo == nil then MESSAGE:New('Нечего загружать', 20):ToUnit(unit) end
+  
+    if (closestCargo) then
+      unit:AddCargo(closestCargo)
+      MESSAGE:New('Погружено ' ..closestCargo.type.nameText..' '..closestCargo.weight..'кг.', 20):ToUnit(unit)
+      closestCargo:Destroy(false)
+      set_cargo:Remove(closestCargo:GetName())
+      CalculateMass(unit)
+    end
 end
 
 -- Выводит сообщение с информацией о всех грузах в указанном радиусе от юнита.
