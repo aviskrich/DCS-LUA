@@ -1,32 +1,30 @@
-SetGroup = SET_GROUP:New():FilterPrefixes( "RECON" ):FilterStart()
+UnitEventHandler = EVENTHANDLER:New()
+UnitEventHandler:HandleEvent(EVENTS.UnitLost)
 
-HQ = GROUP:FindByName( "HQ BLUE" )
+-- Создаём фигуру круга (или овала) вокруг координат
+local function DrawTriangle(centerCoord, radius, coalition)
+  local p1 = centerCoord:Translate(180, radius)
+  local p2 = centerCoord:Translate(180+120, radius)
+  local p3 = centerCoord:Translate(180-120, radius)
+  
+  local shapeObj = TRIANGLE:New(p1, p2, p3)
+  local colorText = coalition == 1 and "red" or "blue"
+  shapeObj.ColorString = colorText
+  shapeObj:Draw()
 
-CC = COMMANDCENTER:New( HQ, "HQ BLUE" )
+  TIMER:New(1, function()
+    shapeObj:RemoveDraw()
+  end):Start(30)
 
-RecceDetectionStatic = DETECTION_UNITS:New( SetGroup ):FilterCategories( Unit.Category.STRUCTURE )
-RecceDetectionGround = DETECTION_UNITS:New( SetGroup ):FilterCategories( Unit.Category.GROUND_UNIT )
-
-RecceDetectionStatic:Start()
-RecceDetectionGround:Start()
-
---- OnAfter Transition Handler for Event Detect.
--- @param Functional.Detection#DETECTION_UNITS self
--- @param #string From The From State string.
--- @param #string Event The Event string.
--- @param #string To The To State string.
-function RecceDetectionStatic:OnAfterDetect(From,Event,To)
-
-  local DetectionReport = self:DetectedReportDetailed()
-
-  HQ:MessageToAll( DetectionReport, 15, "Detection" )
+  return true
 end
 
-function RecceDetectionGround:OnAfterDetect(From,Event,To)
-
-  local DetectionReport = self:DetectedReportDetailed()
-
-  HQ:MessageToAll( DetectionReport, 15, "Detection" )
+function UnitEventHandler.onEventUnitLost(eventData)
+  local unit = eventData.unit
+  local coalition = unit:GetCoalition()
+  local coordinate = unit:GetCoordinate()
+  
+  DrawTriangle(coordinate, 20, coalition)
 end
 
 collectgarbage()
