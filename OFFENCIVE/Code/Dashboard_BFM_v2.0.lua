@@ -323,22 +323,46 @@ local function PointSystem(spdKNOTS_a, spdKNOTS_b, angle_ab, angle_ba, altM_a, a
 
     -- Формируем строку сообщения с прогресс-барами и результатами
     local message = ""
-    message = message .. string.format("[%s] :IAS knots: %.1f|%.1f\n", progressBarSpd_a, spdKNOTS_a, spdKNOTS_b)
-    message = message .. string.format("[%s] :Угловое преимущество °: %.1f|%.1f\n", progressBarAngle_a, angle_ab, angle_ba)
-    message = message .. string.format("[%s] :TRT °: %.1f|%.1f\n", progressBarTrt_a, trt_a, trt_b)
-    message = message .. string.format("[%s] :Высота м: %.1f|%.1f\n", progressBarAlt_a, altM_a, altM_b)
-    message = message .. string.format("[%s] :Топливо %%: %.1f|%.1f\n", progressBarFuel_a, (current_fuel_a / start_fuel_a) * 100, (current_fuel_b / start_fuel_b) * 100)
     
-    -- Если произошел merge, добавляем информацию о позиции и очках
-    if isMerged then
-        message = message .. string.format("[%s] :Позиция\n", progressBarA)
-        --message = message .. string.format("Очки blue: %.1f|%.1f \n", pointssum_a, result)
-        --message = message .. string.format("Очки red : %.1f|%.1f \n", pointssum_b, 100 - result)
+    -- Определяем язык клиента (предполагается, что есть переменная clientLanguage)
+    local clientLanguage = SETTINGS:GetLocale() or "ru" -- По умолчанию русский, если не определено
+    
+    if clientLanguage == "en" then
+        -- Английская версия сообщений
+        message = message .. string.format("[%s] :IAS knots: %.1f|%.1f\n", progressBarSpd_a, spdKNOTS_a, spdKNOTS_b)
+        message = message .. string.format("[%s] :Angular advantage °: %.1f|%.1f\n", progressBarAngle_a, angle_ab, angle_ba)
+        message = message .. string.format("[%s] :TRT °: %.1f|%.1f\n", progressBarTrt_a, trt_a, trt_b)
+        message = message .. string.format("[%s] :Altitude m: %.1f|%.1f\n", progressBarAlt_a, altM_a, altM_b)
+        message = message .. string.format("[%s] :Fuel %%: %.1f|%.1f\n", progressBarFuel_a, (current_fuel_a / start_fuel_a) * 100, (current_fuel_b / start_fuel_b) * 100)
+
+        -- Если произошел merge, добавляем информацию о позиции и очках
+        if isMerged then
+            message = message .. string.format("[%s] :Position\n", progressBarA)
+            --message = message .. string.format("Очки blue: %.1f|%.1f \n", pointssum_a, result)
+            --message = message .. string.format("Очки red : %.1f|%.1f \n", pointssum_b, 100 - result)
+        end
+
+        -- Добавляем информацию о расстоянии между юнитами
+        message = message .. string.format("Distance between units in meters: %.1f\n", dist_ab)
+    else
+        -- Русская версия сообщений
+        message = message .. string.format("[%s] :IAS узлы: %.1f|%.1f\n", progressBarSpd_a, spdKNOTS_a, spdKNOTS_b)
+        message = message .. string.format("[%s] :Угловое преимущество °: %.1f|%.1f\n", progressBarAngle_a, angle_ab, angle_ba)
+        message = message .. string.format("[%s] :TRT °: %.1f|%.1f\n", progressBarTrt_a, trt_a, trt_b)
+        message = message .. string.format("[%s] :Высота м: %.1f|%.1f\n", progressBarAlt_a, altM_a, altM_b)
+        message = message .. string.format("[%s] :Топливо %%: %.1f|%.1f\n", progressBarFuel_a, (current_fuel_a / start_fuel_a) * 100, (current_fuel_b / start_fuel_b) * 100)
+
+        -- Если произошел merge, добавляем информацию о позиции и очках
+        if isMerged then
+            message = message .. string.format("[%s] :Позиция\n", progressBarA)
+            --message = message .. string.format("Очки blue: %.1f|%.1f \n", pointssum_a, result)
+            --message = message .. string.format("Очки red : %.1f|%.1f \n", pointssum_b, 100 - result)
+        end
+
+        -- Добавляем информацию о расстоянии между юнитами
+        message = message .. string.format("Расстояние между противниками м: %.1f\n", dist_ab)
     end
-
-    -- Добавляем информацию о расстоянии между юнитами
-    message = message .. string.format("Расстояние между противниками м: %.1f\n", dist_ab)
-
+    
     -- Возвращаем сформированное сообщение
     return message
 end
@@ -432,7 +456,14 @@ local function createBFMDashBoard()
                 local deltaAngle = math.abs(dashboard.angleA + dashboard.angleB)
 
                 mergeQuality = (((1 - (deltaAlt/200)) + (1 - ((deltaAngle)/360)))/2)*100
-                dashboard.message = dashboard.message .. string.format("Качество мерджа: %.1f\n", mergeQuality)
+
+                -- Определяем язык клиента (предполагается, что есть переменная clientLanguage)
+                local clientLanguage = SETTINGS:GetLocale() or "ru" -- По умолчанию русский, если не определено
+                if clientLanguage == "en" then
+                    dashboard.message = dashboard.message .. string.format("Merge quality: %.1f\n", mergeQuality)
+                else
+                    dashboard.message = dashboard.message .. string.format("Качество мерджа: %.1f\n", mergeQuality)
+                end
 
                 if dashboard.isMerged then
                     -- В этом месте будет логика для обработки слияния
