@@ -243,6 +243,16 @@ function CalculateCoordsForFARPSTUFF(zone)
     return result
 end
 
+function DestroyCargo(unit)
+    local _, closestCargo = GetCargoInRange(unit:GetPointVec2(), 50)
+    if (closestCargo == nil) then MESSAGE:New('Рядом нечего уничтожить', 20):ToUnit(unit) end
+    closestCargo:Destroy(false)
+    set_cargo:Remove(closestCargo:GetName(), true)
+    MESSAGE:New(string.format('Груз уничтожен: %s', closestCargo.type.nameText), 20):ToUnit(unit)
+
+    return true
+end
+
 local freeADFFrequencies = {
     625, 650, 675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000    
 }
@@ -492,6 +502,7 @@ function SpawnUser:OnEventPlayerEnterAircraft(EventData)
         MENU_GROUP_COMMAND:New(unitMoose:GetGroup(), "Погрузить груз", cargoMenu, LoadCargo, unitMoose)
         MENU_GROUP_COMMAND:New(unitMoose:GetGroup(), "Выгрузить груз", cargoMenu, UnloadCargo, unitMoose)
         MENU_GROUP_COMMAND:New(unitMoose:GetGroup(), "Распаковать груз", cargoMenu, UnpackCargo, unitMoose)
+        MENU_GROUP_COMMAND:New(unitMoose:GetGroup(), "Уничтожить груз", cargoMenu, DestroyCargo, unitMoose)
         MENU_GROUP_COMMAND:New(unitMoose:GetGroup(), "Статус загрузки", cargoMenu, CheckCargo, unitMoose)   
         MENU_GROUP_COMMAND:New(unitMoose:GetGroup(), "Перечислить груз рядом", cargoMenu, ListCargoInRange, unitMoose, 100)
         MENU_GROUP_COMMAND:New(unitMoose:GetGroup(), "Список ФАРП", cargoMenu, GetFARPList, unitMoose)
