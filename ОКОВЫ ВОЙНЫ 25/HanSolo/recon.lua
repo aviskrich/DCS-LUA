@@ -1,30 +1,35 @@
-UnitEventHandler = EVENTHANDLER:New()
-UnitEventHandler:HandleEvent(EVENTS.UnitLost)
+-- BASE:TraceClass("EVENTHANDLER")
+-- BASE:TraceLevel(3)
+-- BASE:TraceOnOff( true )
 
--- Создаём фигуру круга (или овала) вокруг координат
-local function DrawTriangle(centerCoord, radius, coalition)
-  local p1 = centerCoord:Translate(180, radius)
-  local p2 = centerCoord:Translate(180+120, radius)
-  local p3 = centerCoord:Translate(180-120, radius)
-  
-  local shapeObj = TRIANGLE:New(p1, p2, p3)
-  local colorText = coalition == 1 and "red" or "blue"
-  shapeObj.ColorString = colorText
-  shapeObj:Draw()
+---@class Recon
+---@field groundUnits SET_UNIT
 
-  TIMER:New(1, function()
-    shapeObj:RemoveDraw()
-  end):Start(30)
+Recon = {
+  UnitEventHandler = EVENTHANDLER:New(),  
+  removeMarkerTime = 60
+}
+function Recon.SetMarker(eventData)
+  --UTILS.PrintTableToLog(eventData)
 
-  return true
+  if (eventData.TgtUnit and eventData.TgtUnit:GetCoalition()) then
+    local coalitionNum = eventData.TgtUnit:GetCoalition()
+    local coordinate = eventData.TgtUnit:GetCoordinate()
+    local coalitionName = nil
+    if coordinate and coalitionNum == coalition.side.RED then
+      coalitionName = "RED"
+      MARKER:New(coordinate, string.format("Юнит коалиции %s под огнем", coalitionName)):ToAll():Remove(Recon.removeMarkerTime)    
+    else
+      coalitionName = "BLUE"
+      MARKER:New(coordinate, string.format("Юнит коалиции %s под огнем", coalitionName)):ToAll():Remove(Recon.removeMarkerTime)    
+    end
+    return true
+  end
+
+  return false
+end
+function Recon.UnitEventHandler:OnEventHit(eventData)
+  Recon.SetMarker(eventData)
 end
 
-function UnitEventHandler.onEventUnitLost(eventData)
-  local unit = eventData.unit
-  local coalition = unit:GetCoalition()
-  local coordinate = unit:GetCoordinate()
-  
-  DrawTriangle(coordinate, 20, coalition)
-end
-
-collectgarbage()
+Recon.UnitEventHandler:HandleEvent(EVENTS.Hit, Recon.UnitEventHandler.OnEventHit)
