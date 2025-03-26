@@ -17,8 +17,7 @@ function ChatInterceptor.onPlayerTrySendChat(playerId, msg, all)
   -- net.dostring_in('server', string.format("ChatProcessor.process(%s, %s)", playerName, msg))  
 
   local pattern = "^:([%w_]+)%s+(.*)"
-  local keyword, data = string.match(msg, pattern)
-  net.log(string.format("CHAT_PROCESSOR: %s; %s", keyword, data))
+  local keyword, data = string.match(msg, pattern)  
 
   if keyword then
       -- Нашли совпадение
@@ -33,14 +32,11 @@ function ChatInterceptor.onPlayerTrySendChat(playerId, msg, all)
           local strDat = "%s*(.*)"
 
           local regexp = string.format(".*%s.-%s.*%s.-%s.-%s", latDir, ddmLat, longDir, ddmLong, strDat)
-          net.log(string.format("CHAT_PROCESSOR: regexp: %s", regexp))
-
+          
           local latN, latD, latM, latDM, longE, longD, longM, longDM, str = data:match(regexp)
-		      net.log(string.format("CHAT PROCESSOR: latN=%s, latD=%s, latM=%s, latDM=%s, longE=%s, longD=%s, longM=%s, longDM=%s, str=%s",latN, latD, latM, latDM, longE, longD, longM, longDM, str))
-
+		      
           local lat = tonumber(latD) + tonumber(latM..'.'..latDM)/60
           local long = tonumber(longD) + tonumber(longM..'.'..longDM)/60
-          net.log(string.format("CHAT_PROCESSOR: lat: %s, long: %s", lat, long))
           
           local command = string.format("trigger.action.markToCoalition(%s, '%s', coord.LLtoLO(%s, %s), %s, false, '%s')", counter, str, lat, long, coalition, str)
           net.log(command)
