@@ -362,7 +362,7 @@ function UnpackCargo(unit)
             -- if closestCargo.type.static == nil then
             --    GroudRouteToZone(spawnedUnit, SelectCosesestZoneRed(spawnedUnit))
             -- end
-            MESSAGE:New('Распаковано '..closestCargo.type.nameText, 20):ToUnit(unit)
+            MESSAGE:New('Распаковано '..closestCargo.type.nameText, 20):ToUnit(unit):ToLog()
             _RemoveAndDestroyCargo(closestCargo)
             return true
         end
@@ -377,7 +377,7 @@ function UnpackCargo(unit)
                     storage:AddLiquid(cargo.type, cargo.count)
                 end
                 _RemoveAndDestroyCargo(closestCargo)
-                MESSAGE:New('Топливо добавлено на фарп', 20):ToUnit(unit)
+                MESSAGE:New('Топливо добавлено на фарп', 20):ToUnit(unit):ToLog()
                 return true
             end
 
@@ -387,7 +387,7 @@ function UnpackCargo(unit)
                     storage:AddItem(cargo.type, cargo.count)
                 end
                 _RemoveAndDestroyCargo(closestCargo)
-                MESSAGE:New('Вооружение добавлено на фарп', 20):ToUnit(unit)
+                MESSAGE:New('Вооружение добавлено на фарп', 20):ToUnit(unit):ToLog()
                 return true
             end
         end
