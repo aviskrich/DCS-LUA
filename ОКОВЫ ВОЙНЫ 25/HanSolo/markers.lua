@@ -1,51 +1,19 @@
+---@diagnostic disable: undefined-global, lowercase-global, duplicate-set-field
+-- Это игнорирует большинство ложных ошибок для API DCS
+
+BASE:TraceClass("AI_CARGO_DISPATCHER_HELICOPTER")
+BASE:TraceLevel(3)
+BASE:TraceOnOff( true )
+
 local markerOpsAmmo = MARKEROPS_BASE:New("ammo", { "dia", "lim", "sec"}, true)
 local markerOpsUnit = MARKEROPS_BASE:New("unit", { "dia","move"}, true)
 -- Изменяем обработчик маркеров для транспортировки на cargo
-local markerOpsCargo = MARKEROPS_BASE:New("cargo", { "group", "static", "to"}, true)
+local markerOpsCargo = MARKEROPS_BASE:New("cargo", { "group", "static", "here"}, true)
 
 local coalitions = { 
     [coalition.side.RED] = "red",
     [coalition.side.BLUE] = "blue"
 }
-
--- Список доступных вертолетов для транспортировки
-local availableHelicopters = {
-    ["red"] = {
-        ["mi8"] = {
-            template = "Mi-8 Transport",
-            capacity = 6000,  -- кг
-            speed = 200       -- км/ч
-        },
-        ["mi24"] = {
-            template = "Mi-26 Transport",
-            capacity = 4000, -- кг
-            speed = 250       -- км/ч
-        }
-    },
-    ["blue"] = {
-        ["ch47"] = {
-            template = "CH-47 Transport",
-            capacity = 12000, -- кг
-            speed = 220       -- км/ч
-        },
-        ["uh60"] = {
-            template = "UH-60 Transport",
-            capacity = 4000,  -- кг
-            speed = 240       -- км/ч
-        },
-        ["mi8"] = {
-            template = "Mi-8 Transport",
-            capacity = 6000,  -- кг
-            speed = 200       -- км/ч
-        },
-    }
-}
-
--- Таблица для хранения активных транспортных заданий
-local transportMissions = {}
-
--- Таблица для хранения активных диспетчеров грузов
-local activeDispatchers = {}
 
 local function _SendUnit(unit, course, distance, speed)                               
     local unitCoord = unit:GetCoordinate()
@@ -91,6 +59,12 @@ local function _SendUnit(unit, course, distance, speed)
     end
 end
 
+-- Таблица для хранения активных транспортных заданий
+local transportTasks = {}
+
+
+
+-- Обработка маркеров для поиска вооружения
 function markerOpsAmmo:OnAfterMarkChanged(From, Event, To, Text, Keywords, Coord, idx, coalition)
     
     -- Найдем ближайший юнит к координатам маркера
@@ -155,6 +129,7 @@ function markerOpsAmmo:OnAfterMarkChanged(From, Event, To, Text, Keywords, Coord
     end
 end
 
+-- Обработка маркеров для отправки юнитов в точку
 function markerOpsUnit:OnAfterMarkChanged(From, Event, To, Text, Keywords, Coord, idx, coalition)
     local units = SET_UNIT:New():FilterCoalitions(coalitions[coalition]):FilterOnce()
     local nearbyUnits = {}
@@ -193,269 +168,180 @@ function markerOpsUnit:OnAfterMarkChanged(From, Event, To, Text, Keywords, Coord
 
 end
 
--- Функция для поиска ближайшей авиабазы к координатам
-local function FindNearestAirbase(coord, coalition)
-    local airbases = AIRBASE.GetAllAirbases(coalition)
-    local nearestAirbase = nil
-    local minDistance = math.huge
-    
-    for _, airbase in pairs(airbases) do
-        local distance = coord:Get2DDistance(airbase:GetCoordinate())
-        if distance < minDistance then
-            minDistance = distance
-            nearestAirbase = airbase
-        end
+-- Обработка маркеров для транспортировки юнитов и грузов
+function markerOpsCargo:OnAfterMarkChanged(From, Event, To, Text, Keywords, Coord, idx, coalition)
+    -- Проверяем наличие ключевых слов
+    if not Keywords or #Keywords == 0 then return end
+
+    -- Первое слово должно быть cargo
+    local firstWord = Text:match("^(%S+)")
+    if firstWord ~= "cargo" then return end
+
+    -- Обработка выбора груза (cargo group/crate name)
+    if Keywords[1] == "group" or Keywords[1] == "crate" then
+        self:HandleCargoSelection(Text, Keywords, Coord, idx, coalition)
+    -- Обработка указания точки назначения (cargo #task_number here)
+    elseif Keywords[1] == "here" then
+        self:HandleCargoDestination(Text, Keywords, Coord, idx, coalition)
     end
-    
-    return nearestAirbase, minDistance
 end
 
--- Функция для поиска объекта (юнита или статика) по ID или Callsign
-local function FindObject(identifier, objectType, coalition)
-    if objectType == "group" then
-        local groups = SET_GROUP:New():FilterPrefixes(identifier):FilterCoalitions(coalitions[coalition]):FilterOnce()
-        for _, group in pairs(groups:GetSet()) do
-            local callsign = group:GetName()
-            if callsign and string.lower(callsign) == string.lower(identifier) then
-                return group
-            end
-        end
-    elseif objectType == "static" then
-        local statics = SET_STATIC:New():FilterOnce()
-        
-        -- Для статических объектов ищем по ID
-        if tonumber(identifier) then
-            for _, static in pairs(statics:GetSet()) do
-                if static:GetID() == tonumber(identifier) then
-                    return static
-                end
-            end
-        end
-        
-        -- Для статических объектов ищем по имени
-        for _, static in pairs(statics:GetSet()) do
-            local name = static:GetName()
-            if name and string.lower(name) == string.lower(identifier) then
-                return static
-            end
-        end
-    end
-    return nil
-end
+-- Создаем множества для хранения транспортных вертолетов и грузов
+local carrierSet = SET_GROUP:New():FilterPrefixes("TransportHeli"):FilterStart()
+local cargoSet = SET_CARGO:New():FilterTypes("Infantry"):FilterStart()
 
--- Функция для создания транспортной миссии с использованием AI_CARGO_DISPATCHER
-local function CreateTransportMission(heliType, cargo, destination, coalition)
-    local coalitionName = coalitions[coalition]
-    local heliData = availableHelicopters[coalitionName][heliType]
-    
-    if not heliData then
-        return false, "Вертолет типа " .. heliType .. " не найден"
-    end
-    
-    -- Находим ближайшую авиабазу к грузу
-    local nearestAirbase, distance = FindNearestAirbase(cargo:GetCoordinate(), coalition)
-    if not nearestAirbase then
-        return false, "Не найдена подходящая авиабаза"
-    end
-    
-    -- Создаем уникальное имя для группы вертолета
-    local groupName = heliType .. "_transport_" .. os.time()
-    
-    -- Создаем вертолет из шаблона
-    local helicopter = SPAWN:New(heliData.template)
-                           :InitGrouping(1)
-                           :InitLimit(1, 10)
-                           :SpawnAtAirbase(nearestAirbase, SPAWN.Takeoff.Air)
-    
-    if not helicopter then
-        return false, "Не удалось создать вертолет"
-    end
-    
-    -- Создаем SET_GROUP для вертолета
-    local carrierSet = SET_GROUP:New()
-    carrierSet:AddGroup(helicopter)
-    
-    -- Создаем задание на перевозку груза
-    local cargoName = "Cargo_" .. os.time()
-    local cargoObject
-    
-    -- Создаем SET_CARGO для груза
-    local cargoSet = SET_CARGO:New()
-    
-    if cargo.ClassName == "GROUP" then
-        -- Для юнитов создаем CARGO_UNIT
-        cargoObject = CARGO_GROUP:New(cargo, cargoName, cargo:GetName(), heliData.capacity)
-    elseif cargo.ClassName == "STATIC" then
-        -- Для статических объектов создаем CARGO_CRATE
-        cargoObject = CARGO_CRATE:New(cargo, cargoName, cargo:GetName(), heliData.capacity)
-    else
-        return false, "Неподдерживаемый тип груза: " .. (cargo.ClassName or "неизвестный")
-    end
-    
-    -- Добавляем груз в SET_CARGO
-    cargoSet:AddCargo(cargoObject)
-    
-    -- Создаем зону назначения
-    local deployZoneName = "DeployZone_" .. os.time()
-    local deployZone = ZONE_RADIUS:New(deployZoneName, destination:GetVec2(), 100)
-    local homeZone = ZONE_RADIUS:New("HomeZone_" .. os.time(), helicopter:GetVec2(), 1000)
-    
-    -- Создаем SET_ZONE для зоны захвата груза
-    local pickupZone = ZONE_RADIUS:New("PickupZone_" .. os.time(), cargo:GetVec2(), 300)
-    local pickupZoneSet = SET_ZONE:New()
-    pickupZoneSet:AddZone(pickupZone)
+-- Функция обработки выбора груза
+function markerOpsCargo:HandleCargoSelection(Text, Keywords, Coord, idx, coalition)
+    -- Парсим формат: cargo group/crate name
+    local cargoType = Keywords[1] -- group или crate
+    local name = Text:match("cargo%s+" .. cargoType .. "%s+(.+)") -- извлекаем имя
 
-    -- Создаем SET_ZONE для зоны назначения
-    local deployZoneSet = SET_ZONE:New()
-    deployZoneSet:AddZone(deployZone)
-    
-    -- Создаем диспетчер грузов
-    local dispatcher = AI_CARGO_DISPATCHER_HELICOPTER:New(carrierSet, cargoSet, pickupZoneSet, deployZoneSet)
-    dispatcher:SetHomeZone(homeZone)
-    
-    -- Сохраняем информацию о миссии
-    local missionId = "mission_" .. coalition .. "_" .. os.time()
-    transportMissions[missionId] = {
-        helicopter = helicopter,
-        cargo = cargo,
-        cargoObject = cargoObject,
-        destination = destination,
+    if not name then
+        MESSAGE:New("Неверный формат. Используйте: cargo group/crate name", 20):ToCoalition(coalition)
+        return
+    end
+
+    -- Создаем новую задачу
+    local taskNumber = transportTasks and #transportTasks + 1 or 1
+    transportTasks[taskNumber] = {
+        type = cargoType,
+        name = name,
         coalition = coalition,
-        startTime = os.time(),
-        status = "started",
-        dispatcher = dispatcher,
-        pickupZone = pickupZone,
-        deployZone = deployZone,
-        homeZone = homeZone
+        sourceCoord = Coord,
+        destinationCoord = nil
     }
+
+    MESSAGE:New(string.format("Груз #%d отмечен. Поставьте маркер 'cargo #%d here' в точке назначения", 
+        taskNumber, taskNumber), 20):ToCoalition(coalition)
+end
+
+-- Функция обработки точки назначения
+function markerOpsCargo:HandleCargoDestination(Text, Keywords, Coord, idx, coalition)
+    -- Парсим формат: cargo #task_number here
+    local taskNumber = Text:match("cargo%s+#(%d+)%s+here")
+    taskNumber = tonumber(taskNumber)
+
+    if not taskNumber or not transportTasks[taskNumber] then
+        MESSAGE:New("Неверный номер задачи или задача не найдена", 20):ToCoalition(coalition)
+        return
+    end
+
+    -- Проверяем, что коалиция совпадает
+    if transportTasks[taskNumber].coalition ~= coalition then
+        MESSAGE:New("У вас нет доступа к этой задаче", 20):ToCoalition(coalition)
+        return
+    end
+
+    -- Добавляем координаты назначения к задаче
+    transportTasks[taskNumber].destinationCoord = Coord
+
+    MESSAGE:New(string.format("Точка назначения для задачи #%d установлена", taskNumber), 20)
+        :ToCoalition(coalition)
     
-    -- Добавляем диспетчер в список активных
-    activeDispatchers[missionId] = dispatcher
+    self:StartTransportMission(taskNumber)
+end
+
+
+-- Функция создания и запуска транспортной миссии
+function markerOpsCargo:StartTransportMission(taskNumber)
+    local task = transportTasks[taskNumber]
+    if not task then return end
+
+    -- Создаем зону высадки из координат маркера назначения
+    local dropZoneName = string.format("DropZone_%d", taskNumber)
+    local dropZone = ZONE_RADIUS:New(dropZoneName, task.destinationCoord:GetVec2(), 100)
+
+    -- Создаем CARGO_GROUP из выбранной группы пехоты
+    local cargoGroup = GROUP:FindByName(task.name)
+    if not cargoGroup then
+        MESSAGE:New("Ошибка: группа " .. task.name .. " не найдена"):ToCoalition(task.coalition)
+        return
+    end
+
+    -- Создаем объект CARGO_GROUP
+    local cargo = CARGO_GROUP:New(cargoGroup, "Infantry", task.name, 1000)
     
-    -- Обработчик события возвращения домой
-    -- function dispatcher:OnAfterHome(From, Event, To, CarrierGroup, Coordinate, Speed, Height, HomeZone)
-    --     -- Проверяем, что это наш вертолет
-    --     if CarrierGroup:GetName() == helicopter:GetName() then
-    --         -- Миссия завершена, уничтожаем вертолет
-            
-    --         if helicopter and helicopter:IsAlive() then
-    --             helicopter:Destroy()
-    --         end
-            
-    --         -- Очищаем ресурсы
-    --         dispatcher:Stop()
-    --         activeDispatchers[missionId] = nil
-    --         transportMissions[missionId] = nil
-            
-    --         -- Отправляем сообщение о завершении миссии
-    --         MESSAGE:New("Транспортная миссия завершена. Груз доставлен.", 20)
-    --             :ToCoalition(coalition)
-        
-    --     end
-    -- end
+    -- Находим ближайшую авиабазу к точке погрузки
+    local nearestBase = nil
+    local shortestDistance = math.huge
     
-    -- Запускаем диспетчер
+    for _, base in pairs(AIRBASE.GetAllAirbases()) do
+        local distance = base:GetCoordinate():Get2DDistance(task.sourceCoord)
+        if distance < shortestDistance then
+            shortestDistance = distance
+            nearestBase = base
+        end
+    end
+
+    if not nearestBase then
+        MESSAGE:New("Ошибка: не найдена подходящая авиабаза"):ToCoalition(task.coalition)
+        return
+    end
+
+    -- Создаем диспетчера для этой конкретной миссии
+    local dispatcher = AI_CARGO_DISPATCHER_HELICOPTER:New(
+        carrierSet, 
+        SET_CARGO:New():AddCargo(cargo),
+        SET_ZONE:New():AddZone(ZONE_RADIUS:New("PickupZone_" .. taskNumber, task.sourceCoord:GetVec2(), 100)),
+        SET_ZONE:New():AddZone(dropZone)
+    )
+
+    -- Устанавливаем домашнюю зону как ближайшую авиабазу
+    dispatcher:SetHomeZone(ZONE_AIRBASE:New(nearestBase:GetName()))
     dispatcher:Start()
     
-    return true, missionId
+    -- Обновляем статус миссии
+    task.status = "active"
+    task.dispatcher = dispatcher
+    
+    -- Отправляем сообщение о начале миссии
+    MESSAGE:New(
+        string.format("Транспортная миссия #%d запущена\nГруз: %s\nБаза вылета: %s", 
+            taskNumber, 
+            task.name, 
+            nearestBase:GetName()
+        )
+    ):ToCoalition(task.coalition)
 end
 
--- Обработчик маркеров для транспортировки грузов
-function markerOpsCargo:OnAfterMarkChanged(From, Event, To, Text, Keywords, Coord, idx, coalition)
-    -- Парсим текст маркера для получения информации о транспортировке
-    local heliType, objectType, objectIdentifier, toMarker
+-- Создаем меню для офицера Combined Arms
+local function createTransportMenu()
+    -- Создаем основное меню для каждой коалиции
+    local redMenu = MENU_COALITION:New(coalition.side.RED, "Транспортные операции")
+    local blueMenu = MENU_COALITION:New(coalition.side.BLUE, "Транспортные операции")
     
-    -- Проверяем наличие ключевых слов
-    if Keywords and #Keywords > 0 then
-        for _, keyword in ipairs(Keywords) do
-            if keyword:lower() == "group" or keyword:lower() == "static" then
-                objectType = keyword:lower()
-                -- Ищем идентификатор объекта (ID или Callsign)
-                local idPattern = objectType .. "%s+([%w%d_%-]+)"
-                objectIdentifier = string.match(Text, idPattern)
-            elseif keyword:lower() == "to" then
-                -- Проверяем, есть ли указание на маркер назначения
-                local toPattern = "to%s*$" -- Просто ключевое слово "to" в конце
-                if string.match(Text, toPattern) then
-                    -- Это маркер назначения
-                    -- Ищем соответствующую ожидающую миссию
-                    for missionKey, missionData in pairs(transportMissions) do
-                        if string.match(missionKey, "^pending_" .. coalition) then
-                            -- Нашли ожидающую миссию для этой коалиции
-                            
-                            -- Создаем транспортную миссию
-                            local success, missionIdOrError = CreateTransportMission(
-                                missionData.heliType,
-                                missionData.cargo,
-                                Coord,
-                                coalition
-                            )
-                            
-                            if success then
-                                MESSAGE:New("Транспортная миссия начата. Вертолет " .. missionData.heliType .. 
-                                           " направляется к грузу.", 20)
-                                    :ToCoalition(coalition)
-                                
-                                -- Удаляем ожидающую миссию
-                                transportMissions[missionKey] = nil
-                                return
-                            else
-                                MESSAGE:New("Ошибка при создании транспортной миссии: " .. missionIdOrError, 20)
-                                    :ToCoalition(coalition)
-                                return
-                            end
-                        end
-                    end
-                    
-                    -- Если не нашли ожидающую миссию
-                    MESSAGE:New("Не найдено ожидающих транспортных миссий. Сначала отметьте груз.", 20)
-                        :ToCoalition(coalition)
-                    return
-                end
-            end
+    -- Добавляем команду просмотра миссий
+    MENU_COALITION_COMMAND:New(coalition.side.RED, "Просмотреть транспортные миссии", redMenu, showTransportMissions, coalition.side.RED)
+    MENU_COALITION_COMMAND:New(coalition.side.BLUE, "Просмотреть транспортные миссии", blueMenu, showTransportMissions, coalition.side.BLUE)
+end
+
+-- Функция отображения информации о транспортных миссиях
+function showTransportMissions(coalitionSide)
+    local message = "Активные транспортные миссии:\n\n"
+    local hasActiveMissions = false
+    
+    for taskNum, task in pairs(transportTasks) do
+        if task.coalition == coalitionSide then
+            hasActiveMissions = true
+            message = message .. string.format(
+                "Миссия #%d:\n" ..
+                "- Тип: %s\n" ..
+                "- Груз: %s\n" ..
+                "- Статус: %s\n\n",
+                taskNum,
+                task.type == "group" and "Пехота" or "Контейнер",
+                task.name,
+                task.destinationCoord and "Ожидает транспорт" or "Ожидает точку назначения"
+            )
         end
     end
     
-    -- Извлекаем тип вертолета из текста маркера
-    local heliPattern = "^:([%w_]+)%s+"
-    heliType = string.match(Text, heliPattern)
-    
-    -- Проверяем, что у нас есть вся необходимая информация для первого этапа
-    if not heliType or not objectType or not objectIdentifier then
-        MESSAGE:New("Неверный формат маркера. Используйте: :тип_вертолета unit/static ID_или_позывной", 20)
-            :ToCoalition(coalition)
-        return
+    if not hasActiveMissions then
+        message = "Нет активных транспортных миссий"
     end
     
-    -- Находим объект для транспортировки
-    local cargoObject = FindObject(objectIdentifier, objectType, coalition)
-    if not cargoObject then
-        MESSAGE:New("Объект '" .. objectIdentifier .. "' не найден", 20)
-            :ToCoalition(coalition)
-        return
-    end
-    
-    -- Сохраняем информацию о грузе для последующего маркера
-    local missionKey = "pending_" .. coalition .. "_" .. os.time()
-    transportMissions[missionKey] = {
-        heliType = heliType,
-        cargo = cargoObject,
-        cargoCoord = Coord,
-        coalition = coalition,
-        startTime = os.time(),
-        markerIdx = idx
-    }
-    
-    MESSAGE:New("Груз отмечен для транспортировки. Поставьте маркер с текстом ':cargo to' в месте назначения", 20)
-        :ToCoalition(coalition)
+    MESSAGE:New(message, 30):ToCoalition(coalitionSide)
 end
 
--- Очистка ресурсов при завершении миссии
-function CleanupTransportMissions()
-    for missionId, dispatcher in pairs(activeDispatchers) do
-        dispatcher:Stop()
-    end
-    activeDispatchers = {}
-    transportMissions = {}
-end
-
+-- Инициализация меню при запуске скрипта
+createTransportMenu()
