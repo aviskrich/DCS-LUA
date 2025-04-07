@@ -275,7 +275,7 @@ function UnpackCargo(unit)
         -- SPAWN FARP площадки 
         --------------------------------------------------------------------------------------------------------------------------
         if closestCargo and closestCargo.type.constructionSpawner ~= nil then -- может быть еще проверить на тип, чтобы он был таблицей?
-            -- преде чем создать FARP надо посчитать, сколько уже их на карте. Если больше 3, то не создавать
+            -- преде чем создать FARP надо посчитать, сколько уже их на карте. Если больше util.maxFARPCount, то не создавать
             -- также проверить, что расстояние до ближайшего FARP больше 20 км
             local FARPs = AIRBASE.GetAllAirbases(unit:GetDCSObject():getCoalition(), Airbase.Category.HELIPAD)
             if #FARPs > maxFARPCount[unit:GetDCSObject():getCoalition()] then
