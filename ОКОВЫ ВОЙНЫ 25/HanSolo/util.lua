@@ -94,10 +94,10 @@ zoneCargo = {
   'Zone-80'
 }
 
--- Максимальное число FARP-ов на карте (не считая темплейта)
+-- Максимальное число FARP-ов на карте считая темплейт!!!
 maxFARPCount = {
-  [1] = 3, -- RED Coalition
-  [2] = 3  -- BLUE Coalition
+  [1] = 4, -- RED Coalition 
+  [2] = 4  -- BLUE Coalition
 }
 
 --ГРУЗЫ
