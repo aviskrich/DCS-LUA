@@ -1372,16 +1372,16 @@ def main():
         version=f"Специализированный парсер CIFP v{VERSION}"
     )
     
-    # args = parser.parse_args()
-    args = type('Args', (), {
-        'input': "/Users/aviskrich/Downloads",
-        'output': "/Users/aviskrich/PROJECTS/DCS/Missions/DCS-LUA/DCS ATC/AIRAC Data",
-        'debug': False,
-        'no_filter': False,
-        'manual': None,
-        'template': None,
-        'verify': False
-    })()
+    args = parser.parse_args()
+    # args = type('Args', (), {
+    #     'input': "/Users/aviskrich/Downloads",
+    #     'output': "/Users/aviskrich/PROJECTS/DCS/Missions/DCS-LUA/DCS ATC/AIRAC Data",
+    #     'debug': False,
+    #     'no_filter': False,
+    #     'manual': None,
+    #     'template': None,
+    #     'verify': False
+    # })()
 
     # Создание шаблона для ручного ввода координат
     if args.template:
