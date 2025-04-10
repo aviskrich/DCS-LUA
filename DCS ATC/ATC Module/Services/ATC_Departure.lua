@@ -1,16 +1,19 @@
 --[[
-DTC_Departure.lua
+ATC_Departure.lua
 Модуль службы Departure для универсального ATC модуля
-Автор: AVIskrich
+Автор: Andrey Iskrich
 Дата: Апрель 2025
 --]]
 
-local DTC_Departure = {}
+local ATC_Departure = {}
 
 -- Создание новой службы Departure
-DTC_Departure.new = function(icao, callsign, frequency, range)
+ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
     -- Наследование от базового класса службы ATC
-    local departure = DTC_ATC_Service.new(icao, callsign, frequency, range or 50)
+    local departure = ATC_Service.new(icao, callsign, frequency, range or 50, coalition)
+    
+    -- Добавление ссылки на Navigraph для этого аэропорта
+    departure.navigraph = nil
     
     -- Переопределение инициализации
     local baseInit = departure.init
@@ -19,7 +22,17 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
         self:log("Инициализация службы Departure")
         
         -- Инициализация данных о ВПП
-        self.runways = DTC_Navigraph.getAllRunways()
+        self.runways = {}
+        
+        -- Если есть ссылка на Navigraph, используем её
+        if self.navigraph then
+            self.runways = self.navigraph:getAllRunways()
+        else
+            -- Иначе используем глобальный Navigraph (для обратной совместимости)
+            local ATC_Navigraph = require("Scripts.ATC_Module.Core.ATC_Navigraph")
+            self.runways = ATC_Navigraph.getAllRunways()
+        end
+        
         self.activeRunway = nil
         
         -- Определение активной ВПП
@@ -37,14 +50,14 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
         end
         
         -- Получение данных о погоде
-        local weather = DTC_Utils.getWeatherInfo(serviceCoord)
+        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
         if not weather then
             self:log("Не удалось получить данные о погоде")
             return
         end
         
         -- Определение активной ВПП на основе ветра
-        self.activeRunway = DTC_Utils.getActiveRunway(self.runways, weather.windDirection)
+        self.activeRunway = ATC_Utils.getActiveRunway(self.runways, weather.windDirection)
         
         if self.activeRunway then
             self:log("Установлена активная ВПП: " .. self.activeRunway)
@@ -84,7 +97,12 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
             return
         end
         
-        local playerName = DTC_Utils.getPlayerName(object)
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return
+        end
+        
+        local playerName = ATC_Utils.getPlayerName(object)
         if not playerName then
             return
         end
@@ -93,23 +111,33 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Определение фазы полета
-        local flightPhase = DTC_Utils.getFlightPhase(object)
+        local flightPhase = ATC_Utils.getFlightPhase(object)
         
         -- Если объект только что взлетел, приветствуем его
         if flightPhase == "CLIMB" then
             self:sendMessage(object, callsign .. ", вы вошли в зону ответственности " .. self.callsign .. ". Набирайте высоту по SID.")
             
             -- Получение рекомендуемой SID процедуры
-            local objectHeading = DTC_Utils.getObjectHeading(object)
-            local recommendedSID = DTC_Procedures.getRecommendedSID(self.activeRunway, objectHeading)
+            local objectHeading = ATC_Utils.getObjectHeading(object)
+            
+            local recommendedSID = nil
+            
+            -- Если есть ссылка на Navigraph, используем её
+            if self.navigraph then
+                local ATC_Procedures = require("Scripts.ATC_Module.Core.ATC_Procedures")
+                recommendedSID = ATC_Procedures.getRecommendedSID(self.navigraph, self.activeRunway, objectHeading)
+            else
+                -- Иначе используем глобальный Procedures (для обратной совместимости)
+                recommendedSID = ATC_Procedures.getRecommendedSID(self.activeRunway, objectHeading)
+            end
             
             if recommendedSID then
                 -- Отправка информации о SID процедуре
-                local sidInfo = DTC_Procedures.getProcedureInfo(recommendedSID.data, "SID")
+                local sidInfo = ATC_Procedures.getProcedureInfo(recommendedSID.data, "SID")
                 self:sendMessage(object, sidInfo)
                 
                 -- Начало отслеживания выполнения процедуры
-                DTC_MonitoringManager.trackObject(object, recommendedSID.data, "SID", self)
+                ATC_MonitoringManager.trackObject(object, recommendedSID.data, "SID", self)
             end
         end
     end
@@ -120,7 +148,12 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
             return
         end
         
-        local playerName = DTC_Utils.getPlayerName(object)
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return
+        end
+        
+        local playerName = ATC_Utils.getPlayerName(object)
         if not playerName then
             return
         end
@@ -129,12 +162,12 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Определение фазы полета
-        local flightPhase = DTC_Utils.getFlightPhase(object)
+        local flightPhase = ATC_Utils.getFlightPhase(object)
         
         -- Если объект на крейсерской высоте, отправляем оценку выполнения процедуры
         if flightPhase == "CRUISE" then
             -- Отправка оценки выполнения процедуры
-            local evaluation = DTC_MonitoringManager.sendPerformanceEvaluation(object, self)
+            local evaluation = ATC_MonitoringManager.sendPerformanceEvaluation(object, self)
             
             if evaluation then
                 -- Отправка прощального сообщения
@@ -149,11 +182,16 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
             return false
         end
         
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
         -- Получение позывного объекта
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Определение фазы полета
-        local flightPhase = DTC_Utils.getFlightPhase(object)
+        local flightPhase = ATC_Utils.getFlightPhase(object)
         
         -- Если объект не на земле, отказываем
         if flightPhase ~= "GROUND" then
@@ -166,12 +204,12 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
         
         -- Получение данных о погоде
         local serviceCoord = self:getCoordinate()
-        local weather = DTC_Utils.getWeatherInfo(serviceCoord)
+        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
         
         -- Формирование информации о ветре
         local windInfo = ""
         if weather then
-            windInfo = "Ветер " .. DTC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов. "
+            windInfo = "Ветер " .. ATC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов. "
         end
         
         -- Формирование ответа
@@ -182,18 +220,27 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
         
         -- Получение рекомендуемой SID процедуры
         local objectCoord = object:GetCoordinate()
-        local objectHeading = DTC_Utils.getObjectHeading(object)
+        local objectHeading = ATC_Utils.getObjectHeading(object)
         
-        local recommendedSID = DTC_Procedures.getRecommendedSID(self.activeRunway, objectHeading)
+        local recommendedSID = nil
+        
+        -- Если есть ссылка на Navigraph, используем её
+        if self.navigraph then
+            local ATC_Procedures = require("Scripts.ATC_Module.Core.ATC_Procedures")
+            recommendedSID = ATC_Procedures.getRecommendedSID(self.navigraph, self.activeRunway, objectHeading)
+        else
+            -- Иначе используем глобальный Procedures (для обратной совместимости)
+            recommendedSID = ATC_Procedures.getRecommendedSID(self.activeRunway, objectHeading)
+        end
         
         if recommendedSID then
             -- Отправка информации о SID процедуре
-            local sidInfo = DTC_Procedures.getProcedureInfo(recommendedSID.data, "SID")
+            local sidInfo = ATC_Procedures.getProcedureInfo(recommendedSID.data, "SID")
             self:sendMessage(object, "После взлета следуйте по SID " .. recommendedSID.name .. ".")
             self:sendMessage(object, sidInfo)
             
             -- Начало отслеживания выполнения процедуры
-            DTC_MonitoringManager.trackObject(object, recommendedSID.data, "SID", self)
+            ATC_MonitoringManager.trackObject(object, recommendedSID.data, "SID", self)
         end
         
         return true
@@ -205,11 +252,16 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
             return false
         end
         
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
         -- Получение позывного объекта
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Определение фазы полета
-        local flightPhase = DTC_Utils.getFlightPhase(object)
+        local flightPhase = ATC_Utils.getFlightPhase(object)
         
         -- Если объект не на земле, отказываем
         if flightPhase ~= "GROUND" then
@@ -222,12 +274,12 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
         
         -- Получение данных о погоде
         local serviceCoord = self:getCoordinate()
-        local weather = DTC_Utils.getWeatherInfo(serviceCoord)
+        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
         
         -- Формирование информации о ветре
         local windInfo = ""
         if weather then
-            windInfo = "Ветер " .. DTC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов. "
+            windInfo = "Ветер " .. ATC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов. "
         end
         
         -- Формирование ответа
@@ -245,11 +297,16 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
             return false
         end
         
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
         -- Получение позывного объекта
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Отправка оценки выполнения процедуры
-        local evaluation = DTC_MonitoringManager.sendPerformanceEvaluation(object, self)
+        local evaluation = ATC_MonitoringManager.sendPerformanceEvaluation(object, self)
         
         -- Отправка подтверждения
         self:sendMessage(object, callsign .. ", вас понял, частота свободна, хорошего полета.")
@@ -263,4 +320,4 @@ DTC_Departure.new = function(icao, callsign, frequency, range)
     return departure
 end
 
-return DTC_Departure
+return ATC_Departure

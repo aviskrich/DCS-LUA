@@ -1,14 +1,14 @@
 --[[
-DTC_SRS.lua
+ATC_SRS.lua
 Модуль для интеграции с SRS и распознавания речи для универсального ATC модуля
-Автор: AVIskrich
+Автор: Andrey Iskrich
 Дата: Апрель 2025
 --]]
 
-local DTC_SRS = {}
+local ATC_SRS = {}
 
 -- Настройки SRS
-DTC_SRS.settings = {
+ATC_SRS.settings = {
     enabled = true,
     port = 5002,
     sttEnabled = true,
@@ -16,116 +16,116 @@ DTC_SRS.settings = {
 }
 
 -- Флаг, указывающий, инициализирован ли модуль
-DTC_SRS.isInitialized = false
+ATC_SRS.isInitialized = false
 
 -- Таблица для хранения обработчиков распознанных фраз
-DTC_SRS.phraseHandlers = {}
+ATC_SRS.phraseHandlers = {}
 
 -- Логирование
-DTC_SRS.log = function(message)
-    if DTC_Config and DTC_Config.DEBUG then
-        env.info("[DTC_SRS] " .. message)
+ATC_SRS.log = function(message)
+    if ATC_Config and ATC_Config.DEBUG then
+        env.info("[ATC_SRS] " .. message)
     end
 end
 
 -- Инициализация модуля
-DTC_SRS.init = function()
-    if DTC_SRS.isInitialized then
+ATC_SRS.init = function()
+    if ATC_SRS.isInitialized then
         return true
     end
     
     -- Загрузка настроек из конфигурации
-    if DTC_Config and DTC_Config.SRS then
-        DTC_SRS.settings.enabled = DTC_Config.SRS.ENABLED
-        DTC_SRS.settings.port = DTC_Config.SRS.PORT
-        DTC_SRS.settings.sttEnabled = DTC_Config.SRS.STT_ENABLED
-        DTC_SRS.settings.confidenceThreshold = DTC_Config.SRS.STT_CONFIDENCE_THRESHOLD
+    if ATC_Config and ATC_Config.SRS then
+        ATC_SRS.settings.enabled = ATC_Config.SRS.ENABLED
+        ATC_SRS.settings.port = ATC_Config.SRS.PORT
+        ATC_SRS.settings.sttEnabled = ATC_Config.SRS.STT_ENABLED
+        ATC_SRS.settings.confidenceThreshold = ATC_Config.SRS.STT_CONFIDENCE_THRESHOLD
     end
     
     -- Проверка, включен ли SRS
-    if not DTC_SRS.settings.enabled then
-        DTC_SRS.log("SRS интеграция отключена в настройках")
+    if not ATC_SRS.settings.enabled then
+        ATC_SRS.log("SRS интеграция отключена в настройках")
         return false
     end
     
     -- Инициализация SRS API
-    local success = DTC_SRS.initSRS()
+    local success = ATC_SRS.initSRS()
     if not success then
-        DTC_SRS.log("Ошибка при инициализации SRS API")
+        ATC_SRS.log("Ошибка при инициализации SRS API")
         return false
     end
     
     -- Инициализация STT, если включено
-    if DTC_SRS.settings.sttEnabled then
-        local sttSuccess = DTC_SRS.initSTT()
+    if ATC_SRS.settings.sttEnabled then
+        local sttSuccess = ATC_SRS.initSTT()
         if not sttSuccess then
-            DTC_SRS.log("Ошибка при инициализации STT")
+            ATC_SRS.log("Ошибка при инициализации STT")
             return false
         end
     end
     
-    DTC_SRS.isInitialized = true
-    DTC_SRS.log("SRS модуль успешно инициализирован")
+    ATC_SRS.isInitialized = true
+    ATC_SRS.log("SRS модуль успешно инициализирован")
     return true
 end
 
 -- Инициализация SRS API
-DTC_SRS.initSRS = function()
+ATC_SRS.initSRS = function()
     -- Проверка наличия SRS API
     if not SRS then
-        DTC_SRS.log("SRS API не найден")
+        ATC_SRS.log("SRS API не найден")
         return false
     end
     
     -- Инициализация SRS API
     local success, result = pcall(function()
-        return SRS.init(DTC_SRS.settings.port)
+        return SRS.init(ATC_SRS.settings.port)
     end)
     
     if not success or not result then
-        DTC_SRS.log("Ошибка при инициализации SRS API: " .. tostring(result))
+        ATC_SRS.log("Ошибка при инициализации SRS API: " .. tostring(result))
         return false
     end
     
-    DTC_SRS.log("SRS API успешно инициализирован на порту " .. DTC_SRS.settings.port)
+    ATC_SRS.log("SRS API успешно инициализирован на порту " .. ATC_SRS.settings.port)
     return true
 end
 
 -- Инициализация STT
-DTC_SRS.initSTT = function()
+ATC_SRS.initSTT = function()
     -- Проверка наличия SRS STT API
     if not SRS or not SRS.startSTT then
-        DTC_SRS.log("SRS STT API не найден")
+        ATC_SRS.log("SRS STT API не найден")
         return false
     end
     
     -- Инициализация SRS STT API
     local success, result = pcall(function()
-        return SRS.startSTT(DTC_SRS.onSpeechRecognized)
+        return SRS.startSTT(ATC_SRS.onSpeechRecognized)
     end)
     
     if not success or not result then
-        DTC_SRS.log("Ошибка при инициализации SRS STT API: " .. tostring(result))
+        ATC_SRS.log("Ошибка при инициализации SRS STT API: " .. tostring(result))
         return false
     end
     
-    DTC_SRS.log("SRS STT API успешно инициализирован")
+    ATC_SRS.log("SRS STT API успешно инициализирован")
     return true
 end
 
 -- Обработчик распознанной речи
-DTC_SRS.onSpeechRecognized = function(text, confidence, frequency, modulation, unit)
+ATC_SRS.onSpeechRecognized = function(text, confidence, frequency, modulation, unit)
     if not text or text == "" then
         return
     end
     
     -- Проверка уровня уверенности
-    if confidence < DTC_SRS.settings.confidenceThreshold then
-        DTC_SRS.log("Распознанный текст отклонен из-за низкого уровня уверенности: " .. text .. " (" .. confidence .. ")")
+    if confidence < ATC_SRS.settings.confidenceThreshold then
+        ATC_SRS.log("Распознанный текст отклонен из-за низкого уровня уверенности: " .. text .. " (" .. confidence .. ")")
         return
     end
     
-    DTC_SRS.log("Распознан текст: " .. text .. " (уверенность: " .. confidence .. ", частота: " .. frequency .. ")")
+    ATC_SRS.log("Распознан текст: " .. text .. " (уверенность: " .. confidence .. ", частота: " .. frequency .. ")")
     
     -- Получение информации о юните
     local unitName = "Unknown"
@@ -138,10 +138,10 @@ DTC_SRS.onSpeechRecognized = function(text, confidence, frequency, modulation, u
         isPlayer = unit:getPlayerName() ~= nil
     end
     
-    DTC_SRS.log("Юнит: " .. unitName .. " (" .. unitType .. "), игрок: " .. tostring(isPlayer))
+    ATC_SRS.log("Юнит: " .. unitName .. " (" .. unitType .. "), игрок: " .. tostring(isPlayer))
     
     -- Обработка распознанного текста
-    DTC_SRS.processRecognizedText(text, {
+    ATC_SRS.processRecognizedText(text, {
         confidence = confidence,
         frequency = frequency,
         modulation = modulation,
@@ -153,14 +153,14 @@ DTC_SRS.onSpeechRecognized = function(text, confidence, frequency, modulation, u
 end
 
 -- Обработка распознанного текста
-DTC_SRS.processRecognizedText = function(text, info)
+ATC_SRS.processRecognizedText = function(text, info)
     -- Нормализация текста
-    local normalizedText = DTC_SRS.normalizeText(text)
+    local normalizedText = ATC_SRS.normalizeText(text)
     
     -- Поиск подходящего обработчика
-    for pattern, handler in pairs(DTC_SRS.phraseHandlers) do
+    for pattern, handler in pairs(ATC_SRS.phraseHandlers) do
         if string.match(normalizedText, pattern) then
-            DTC_SRS.log("Найден обработчик для паттерна: " .. pattern)
+            ATC_SRS.log("Найден обработчик для паттерна: " .. pattern)
             
             -- Вызов обработчика
             local success, result = pcall(function()
@@ -168,20 +168,20 @@ DTC_SRS.processRecognizedText = function(text, info)
             end)
             
             if not success then
-                DTC_SRS.log("Ошибка при вызове обработчика: " .. tostring(result))
+                ATC_SRS.log("Ошибка при вызове обработчика: " .. tostring(result))
             else
-                DTC_SRS.log("Обработчик успешно выполнен")
+                ATC_SRS.log("Обработчик успешно выполнен")
                 return true
             end
         end
     end
     
-    DTC_SRS.log("Не найден обработчик для текста: " .. normalizedText)
+    ATC_SRS.log("Не найден обработчик для текста: " .. normalizedText)
     return false
 end
 
 -- Нормализация текста
-DTC_SRS.normalizeText = function(text)
+ATC_SRS.normalizeText = function(text)
     -- Приведение к нижнему регистру
     local result = string.lower(text)
     
@@ -212,37 +212,37 @@ DTC_SRS.normalizeText = function(text)
 end
 
 -- Регистрация обработчика фразы
-DTC_SRS.registerPhraseHandler = function(pattern, handler)
+ATC_SRS.registerPhraseHandler = function(pattern, handler)
     if not pattern or not handler then
-        DTC_SRS.log("Ошибка при регистрации обработчика: отсутствует паттерн или обработчик")
+        ATC_SRS.log("Ошибка при регистрации обработчика: отсутствует паттерн или обработчик")
         return false
     end
     
-    DTC_SRS.phraseHandlers[pattern] = handler
-    DTC_SRS.log("Зарегистрирован обработчик для паттерна: " .. pattern)
+    ATC_SRS.phraseHandlers[pattern] = handler
+    ATC_SRS.log("Зарегистрирован обработчик для паттерна: " .. pattern)
     return true
 end
 
 -- Удаление обработчика фразы
-DTC_SRS.unregisterPhraseHandler = function(pattern)
+ATC_SRS.unregisterPhraseHandler = function(pattern)
     if not pattern then
-        DTC_SRS.log("Ошибка при удалении обработчика: отсутствует паттерн")
+        ATC_SRS.log("Ошибка при удалении обработчика: отсутствует паттерн")
         return false
     end
     
-    if DTC_SRS.phraseHandlers[pattern] then
-        DTC_SRS.phraseHandlers[pattern] = nil
-        DTC_SRS.log("Удален обработчик для паттерна: " .. pattern)
+    if ATC_SRS.phraseHandlers[pattern] then
+        ATC_SRS.phraseHandlers[pattern] = nil
+        ATC_SRS.log("Удален обработчик для паттерна: " .. pattern)
         return true
     else
-        DTC_SRS.log("Обработчик для паттерна не найден: " .. pattern)
+        ATC_SRS.log("Обработчик для паттерна не найден: " .. pattern)
         return false
     end
 end
 
 -- Отправка текстового сообщения через SRS
-DTC_SRS.sendTextMessage = function(message, frequency, modulation, coalition)
-    if not DTC_SRS.isInitialized or not message or message == "" then
+ATC_SRS.sendTextMessage = function(message, frequency, modulation, coalition)
+    if not ATC_SRS.isInitialized or not message or message == "" then
         return false
     end
     
@@ -252,7 +252,7 @@ DTC_SRS.sendTextMessage = function(message, frequency, modulation, coalition)
     
     -- Проверка наличия SRS API
     if not SRS or not SRS.sendMessage then
-        DTC_SRS.log("SRS API не найден или не поддерживает отправку сообщений")
+        ATC_SRS.log("SRS API не найден или не поддерживает отправку сообщений")
         return false
     end
     
@@ -262,17 +262,17 @@ DTC_SRS.sendTextMessage = function(message, frequency, modulation, coalition)
     end)
     
     if not success then
-        DTC_SRS.log("Ошибка при отправке текстового сообщения: " .. tostring(result))
+        ATC_SRS.log("Ошибка при отправке текстового сообщения: " .. tostring(result))
         return false
     end
     
-    DTC_SRS.log("Отправлено текстовое сообщение: " .. message .. " (частота: " .. frequency .. ")")
+    ATC_SRS.log("Отправлено текстовое сообщение: " .. message .. " (частота: " .. frequency .. ")")
     return true
 end
 
 -- Отправка голосового сообщения через SRS
-DTC_SRS.sendVoiceMessage = function(message, frequency, modulation, coalition, voice)
-    if not DTC_SRS.isInitialized or not message or message == "" then
+ATC_SRS.sendVoiceMessage = function(message, frequency, modulation, coalition, voice)
+    if not ATC_SRS.isInitialized or not message or message == "" then
         return false
     end
     
@@ -283,7 +283,7 @@ DTC_SRS.sendVoiceMessage = function(message, frequency, modulation, coalition, v
     
     -- Проверка наличия SRS API
     if not SRS or not SRS.transmitTTS then
-        DTC_SRS.log("SRS API не найден или не поддерживает отправку голосовых сообщений")
+        ATC_SRS.log("SRS API не найден или не поддерживает отправку голосовых сообщений")
         return false
     end
     
@@ -293,23 +293,23 @@ DTC_SRS.sendVoiceMessage = function(message, frequency, modulation, coalition, v
     end)
     
     if not success then
-        DTC_SRS.log("Ошибка при отправке голосового сообщения: " .. tostring(result))
+        ATC_SRS.log("Ошибка при отправке голосового сообщения: " .. tostring(result))
         return false
     end
     
-    DTC_SRS.log("Отправлено голосовое сообщение: " .. message .. " (частота: " .. frequency .. ")")
+    ATC_SRS.log("Отправлено голосовое сообщение: " .. message .. " (частота: " .. frequency .. ")")
     return true
 end
 
 -- Получение частоты юнита
-DTC_SRS.getUnitFrequency = function(unit)
+ATC_SRS.getUnitFrequency = function(unit)
     if not unit then
         return nil
     end
     
     -- Проверка наличия SRS API
     if not SRS or not SRS.getFrequency then
-        DTC_SRS.log("SRS API не найден или не поддерживает получение частоты")
+        ATC_SRS.log("SRS API не найден или не поддерживает получение частоты")
         return nil
     end
     
@@ -319,7 +319,7 @@ DTC_SRS.getUnitFrequency = function(unit)
     end)
     
     if not success or not result then
-        DTC_SRS.log("Ошибка при получении частоты юнита: " .. tostring(result))
+        ATC_SRS.log("Ошибка при получении частоты юнита: " .. tostring(result))
         return nil
     end
     
@@ -327,14 +327,14 @@ DTC_SRS.getUnitFrequency = function(unit)
 end
 
 -- Проверка, настроен ли юнит на указанную частоту
-DTC_SRS.isUnitTunedToFrequency = function(unit, frequency, tolerance)
+ATC_SRS.isUnitTunedToFrequency = function(unit, frequency, tolerance)
     if not unit or not frequency then
         return false
     end
     
     tolerance = tolerance or 0.001  -- Допустимое отклонение частоты
     
-    local unitFrequency = DTC_SRS.getUnitFrequency(unit)
+    local unitFrequency = ATC_SRS.getUnitFrequency(unit)
     if not unitFrequency then
         return false
     end
@@ -343,69 +343,69 @@ DTC_SRS.isUnitTunedToFrequency = function(unit, frequency, tolerance)
 end
 
 -- Регистрация стандартных обработчиков фраз
-DTC_SRS.registerStandardPhraseHandlers = function(atcService)
+ATC_SRS.registerStandardPhraseHandlers = function(atcService)
     if not atcService then
-        DTC_SRS.log("Ошибка при регистрации стандартных обработчиков: отсутствует служба ATC")
+        ATC_SRS.log("Ошибка при регистрации стандартных обработчиков: отсутствует служба ATC")
         return false
     end
     
     -- Запрос на руление
-    DTC_SRS.registerPhraseHandler("request taxi", function(text, info)
+    ATC_SRS.registerPhraseHandler("request taxi", function(text, info)
         return atcService:handleTaxiRequest(info.unit)
     end)
     
     -- Запрос на взлет
-    DTC_SRS.registerPhraseHandler("request takeoff", function(text, info)
+    ATC_SRS.registerPhraseHandler("request takeoff", function(text, info)
         return atcService:handleTakeoffRequest(info.unit)
     end)
     
     -- Запрос на посадку
-    DTC_SRS.registerPhraseHandler("request landing", function(text, info)
+    ATC_SRS.registerPhraseHandler("request landing", function(text, info)
         return atcService:handleLandingRequest(info.unit)
     end)
     
     -- Запрос на заход
-    DTC_SRS.registerPhraseHandler("request approach", function(text, info)
+    ATC_SRS.registerPhraseHandler("request approach", function(text, info)
         return atcService:handleApproachRequest(info.unit)
     end)
     
     -- Запрос информации ATIS
-    DTC_SRS.registerPhraseHandler("request atis", function(text, info)
+    ATC_SRS.registerPhraseHandler("request atis", function(text, info)
         return atcService:handleATISRequest(info.unit)
     end)
     
     -- Запрос информации о погоде
-    DTC_SRS.registerPhraseHandler("request weather", function(text, info)
+    ATC_SRS.registerPhraseHandler("request weather", function(text, info)
         return atcService:handleWeatherRequest(info.unit)
     end)
     
     -- Запрос информации о трафике
-    DTC_SRS.registerPhraseHandler("request traffic", function(text, info)
+    ATC_SRS.registerPhraseHandler("request traffic", function(text, info)
         return atcService:handleTrafficRequest(info.unit)
     end)
     
     -- Доклад о готовности к взлету
-    DTC_SRS.registerPhraseHandler("ready for takeoff", function(text, info)
+    ATC_SRS.registerPhraseHandler("ready for takeoff", function(text, info)
         return atcService:handleReadyForTakeoff(info.unit)
     end)
     
     -- Доклад о готовности к заходу
-    DTC_SRS.registerPhraseHandler("ready for approach", function(text, info)
+    ATC_SRS.registerPhraseHandler("ready for approach", function(text, info)
         return atcService:handleReadyForApproach(info.unit)
     end)
     
     -- Доклад о прибытии
-    DTC_SRS.registerPhraseHandler("inbound", function(text, info)
+    ATC_SRS.registerPhraseHandler("inbound", function(text, info)
         return atcService:handleInbound(info.unit)
     end)
     
     -- Доклад о выходе из зоны ответственности
-    DTC_SRS.registerPhraseHandler("leaving your airspace", function(text, info)
+    ATC_SRS.registerPhraseHandler("leaving your airspace", function(text, info)
         return atcService:handleLeavingAirspace(info.unit)
     end)
     
-    DTC_SRS.log("Зарегистрированы стандартные обработчики фраз для службы ATC")
+    ATC_SRS.log("Зарегистрированы стандартные обработчики фраз для службы ATC")
     return true
 end
 
-return DTC_SRS
+return ATC_SRS

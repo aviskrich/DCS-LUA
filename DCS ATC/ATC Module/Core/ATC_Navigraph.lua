@@ -1,42 +1,42 @@
 --[[
-DTC_Navigraph.lua
+ATC_Navigraph.lua
 Модуль для загрузки и обработки данных Navigraph для универсального ATC модуля
-Автор: AVIskrich
+Автор: Andrey Iskrich
 Дата: Апрель 2025
 --]]
 
-local DTC_Navigraph = {}
+local ATC_Navigraph = {}
 
 -- Путь к файлам данных Navigraph по умолчанию
-DTC_Navigraph.DEFAULT_DATA_PATH = lfs.writedir() .. "Scripts/Navigraph/"
+ATC_Navigraph.DEFAULT_DATA_PATH = lfs.writedir() .. "Scripts/Navigraph/"
 
 -- Текущий ICAO код аэропорта
-DTC_Navigraph.currentICAO = nil
+ATC_Navigraph.currentICAO = nil
 
 -- Флаг, указывающий, загружены ли данные Navigraph
-DTC_Navigraph.isDataLoaded = false
+ATC_Navigraph.isDataLoaded = false
 
 -- Данные Navigraph
-DTC_Navigraph.data = nil
+ATC_Navigraph.data = nil
 
 -- Логирование
-DTC_Navigraph.log = function(message)
-    if DTC_Config and DTC_Config.DEBUG then
-        env.info("[DTC_Navigraph] " .. message)
+ATC_Navigraph.log = function(message)
+    if ATC_Config and ATC_Config.DEBUG then
+        env.info("[ATC_Navigraph] " .. message)
     end
 end
 
 -- Инициализация с указанием ICAO кода аэропорта
-DTC_Navigraph.init = function(icao)
-    DTC_Navigraph.currentICAO = icao
-    DTC_Navigraph.log("Инициализация модуля Navigraph для аэропорта " .. icao)
-    return DTC_Navigraph
+ATC_Navigraph.init = function(icao)
+    ATC_Navigraph.currentICAO = icao
+    ATC_Navigraph.log("Инициализация модуля Navigraph для аэропорта " .. icao)
+    return ATC_Navigraph
 end
 
 -- Проверка наличия файла данных Navigraph
-DTC_Navigraph.checkDataFileExists = function(path, icao)
+ATC_Navigraph.checkDataFileExists = function(path, icao)
     if not icao then
-        icao = DTC_Navigraph.currentICAO
+        icao = ATC_Navigraph.currentICAO
     end
     
     local filename = icao .. "_MOOSE.lua"
@@ -51,25 +51,25 @@ DTC_Navigraph.checkDataFileExists = function(path, icao)
 end
 
 -- Загрузка данных аэропорта
-DTC_Navigraph.loadAirportData = function(icao, path)
+ATC_Navigraph.loadAirportData = function(icao, path)
     if not icao then
-        icao = DTC_Navigraph.currentICAO
+        icao = ATC_Navigraph.currentICAO
     end
     
     if not path then
-        path = DTC_Navigraph.DEFAULT_DATA_PATH
+        path = ATC_Navigraph.DEFAULT_DATA_PATH
     end
     
     local filename = icao .. "_MOOSE.lua"
     
     -- Проверка наличия файла данных
-    if not DTC_Navigraph.checkDataFileExists(path, icao) then
-        DTC_Navigraph.log("Файл данных Navigraph не найден: " .. path .. filename)
+    if not ATC_Navigraph.checkDataFileExists(path, icao) then
+        ATC_Navigraph.log("Файл данных Navigraph не найден: " .. path .. filename)
         return false
     end
     
     -- Загрузка данных
-    DTC_Navigraph.log("Загрузка данных Navigraph из файла: " .. path .. filename)
+    ATC_Navigraph.log("Загрузка данных Navigraph из файла: " .. path .. filename)
     
     -- Использование dofile для загрузки данных
     local success, result = pcall(function()
@@ -77,185 +77,185 @@ DTC_Navigraph.loadAirportData = function(icao, path)
     end)
     
     if success and result then
-        DTC_Navigraph.data = result
-        DTC_Navigraph.isDataLoaded = true
-        DTC_Navigraph.log("Данные Navigraph успешно загружены для аэропорта " .. icao)
+        ATC_Navigraph.data = result
+        ATC_Navigraph.isDataLoaded = true
+        ATC_Navigraph.log("Данные Navigraph успешно загружены для аэропорта " .. icao)
         
         -- Вывод статистики загруженных данных
         local waypointsCount = 0
-        for _ in pairs(DTC_Navigraph.data.Waypoints or {}) do
+        for _ in pairs(ATC_Navigraph.data.Waypoints or {}) do
             waypointsCount = waypointsCount + 1
         end
         
         local sidCount = 0
-        for _ in pairs(DTC_Navigraph.data.SID or {}) do
+        for _ in pairs(ATC_Navigraph.data.SID or {}) do
             sidCount = sidCount + 1
         end
         
         local starCount = 0
-        for _ in pairs(DTC_Navigraph.data.STAR or {}) do
+        for _ in pairs(ATC_Navigraph.data.STAR or {}) do
             starCount = starCount + 1
         end
         
         local approachCount = 0
-        for _ in pairs(DTC_Navigraph.data.APPROACH or {}) do
+        for _ in pairs(ATC_Navigraph.data.APPROACH or {}) do
             approachCount = approachCount + 1
         end
         
         local runwaysCount = 0
-        for _ in pairs(DTC_Navigraph.data.Runways or {}) do
+        for _ in pairs(ATC_Navigraph.data.Runways or {}) do
             runwaysCount = runwaysCount + 1
         end
         
-        DTC_Navigraph.log("Статистика загруженных данных для аэропорта " .. icao .. ":")
-        DTC_Navigraph.log("  Путевых точек: " .. waypointsCount)
-        DTC_Navigraph.log("  SID процедур: " .. sidCount)
-        DTC_Navigraph.log("  STAR процедур: " .. starCount)
-        DTC_Navigraph.log("  APPROACH процедур: " .. approachCount)
-        DTC_Navigraph.log("  ВПП: " .. runwaysCount)
+        ATC_Navigraph.log("Статистика загруженных данных для аэропорта " .. icao .. ":")
+        ATC_Navigraph.log("  Путевых точек: " .. waypointsCount)
+        ATC_Navigraph.log("  SID процедур: " .. sidCount)
+        ATC_Navigraph.log("  STAR процедур: " .. starCount)
+        ATC_Navigraph.log("  APPROACH процедур: " .. approachCount)
+        ATC_Navigraph.log("  ВПП: " .. runwaysCount)
         
         return true
     else
-        DTC_Navigraph.log("Ошибка при загрузке данных Navigraph: " .. tostring(result))
+        ATC_Navigraph.log("Ошибка при загрузке данных Navigraph: " .. tostring(result))
         return false
     end
 end
 
 -- Получение метаданных аэропорта
-DTC_Navigraph.getAirportMetadata = function()
-    if not DTC_Navigraph.isDataLoaded then
+ATC_Navigraph.getAirportMetadata = function()
+    if not ATC_Navigraph.isDataLoaded then
         return nil
     end
     
-    return DTC_Navigraph.data.Metadata
+    return ATC_Navigraph.data.Metadata
 end
 
 -- Получение путевой точки по имени
-DTC_Navigraph.getWaypoint = function(name)
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.Waypoints then
+ATC_Navigraph.getWaypoint = function(name)
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.Waypoints then
         return nil
     end
     
-    return DTC_Navigraph.data.Waypoints[name]
+    return ATC_Navigraph.data.Waypoints[name]
 end
 
 -- Получение всех путевых точек
-DTC_Navigraph.getAllWaypoints = function()
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.Waypoints then
+ATC_Navigraph.getAllWaypoints = function()
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.Waypoints then
         return {}
     end
     
-    return DTC_Navigraph.data.Waypoints
+    return ATC_Navigraph.data.Waypoints
 end
 
 -- Получение SID процедуры по имени
-DTC_Navigraph.getSID = function(name)
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.SID then
+ATC_Navigraph.getSID = function(name)
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.SID then
         return nil
     end
     
-    return DTC_Navigraph.data.SID[name]
+    return ATC_Navigraph.data.SID[name]
 end
 
 -- Получение всех SID процедур
-DTC_Navigraph.getAllSIDs = function()
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.SID then
+ATC_Navigraph.getAllSIDs = function()
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.SID then
         return {}
     end
     
-    return DTC_Navigraph.data.SID
+    return ATC_Navigraph.data.SID
 end
 
 -- Получение STAR процедуры по имени
-DTC_Navigraph.getSTAR = function(name)
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.STAR then
+ATC_Navigraph.getSTAR = function(name)
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.STAR then
         return nil
     end
     
-    return DTC_Navigraph.data.STAR[name]
+    return ATC_Navigraph.data.STAR[name]
 end
 
 -- Получение всех STAR процедур
-DTC_Navigraph.getAllSTARs = function()
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.STAR then
+ATC_Navigraph.getAllSTARs = function()
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.STAR then
         return {}
     end
     
-    return DTC_Navigraph.data.STAR
+    return ATC_Navigraph.data.STAR
 end
 
 -- Получение APPROACH процедуры по имени
-DTC_Navigraph.getAPPROACH = function(name)
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.APPROACH then
+ATC_Navigraph.getAPPROACH = function(name)
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.APPROACH then
         return nil
     end
     
-    return DTC_Navigraph.data.APPROACH[name]
+    return ATC_Navigraph.data.APPROACH[name]
 end
 
 -- Получение всех APPROACH процедур
-DTC_Navigraph.getAllAPPROACHes = function()
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.APPROACH then
+ATC_Navigraph.getAllAPPROACHes = function()
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.APPROACH then
         return {}
     end
     
-    return DTC_Navigraph.data.APPROACH
+    return ATC_Navigraph.data.APPROACH
 end
 
 -- Получение данных ВПП по имени
-DTC_Navigraph.getRunway = function(name)
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.Runways then
+ATC_Navigraph.getRunway = function(name)
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.Runways then
         return nil
     end
     
-    return DTC_Navigraph.data.Runways[name]
+    return ATC_Navigraph.data.Runways[name]
 end
 
 -- Получение всех данных ВПП
-DTC_Navigraph.getAllRunways = function()
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.Runways then
+ATC_Navigraph.getAllRunways = function()
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.Runways then
         return {}
     end
     
-    return DTC_Navigraph.data.Runways
+    return ATC_Navigraph.data.Runways
 end
 
 -- Получение частоты службы
-DTC_Navigraph.getFrequency = function(service)
-    if not DTC_Navigraph.isDataLoaded or not DTC_Navigraph.data.Frequencies then
+ATC_Navigraph.getFrequency = function(service)
+    if not ATC_Navigraph.isDataLoaded or not ATC_Navigraph.data.Frequencies then
         return nil
     end
     
-    return DTC_Navigraph.data.Frequencies[service]
+    return ATC_Navigraph.data.Frequencies[service]
 end
 
 -- Преобразование координат из формата Navigraph в формат MOOSE
-DTC_Navigraph.convertCoordinatesToMOOSE = function(lat, lon)
+ATC_Navigraph.convertCoordinatesToMOOSE = function(lat, lon)
     return COORDINATE:NewFromLLDD(lat, lon)
 end
 
 -- Преобразование путевой точки из формата Navigraph в формат MOOSE
-DTC_Navigraph.convertWaypointToMOOSE = function(waypointName)
-    local waypoint = DTC_Navigraph.getWaypoint(waypointName)
+ATC_Navigraph.convertWaypointToMOOSE = function(waypointName)
+    local waypoint = ATC_Navigraph.getWaypoint(waypointName)
     if not waypoint then
         return nil
     end
     
-    return DTC_Navigraph.convertCoordinatesToMOOSE(waypoint.lat, waypoint.lon)
+    return ATC_Navigraph.convertCoordinatesToMOOSE(waypoint.lat, waypoint.lon)
 end
 
 -- Преобразование процедуры из формата Navigraph в формат MOOSE
-DTC_Navigraph.convertProcedureToMOOSE = function(procedureName, procedureType)
+ATC_Navigraph.convertProcedureToMOOSE = function(procedureName, procedureType)
     local procedure = nil
     
     if procedureType == "SID" then
-        procedure = DTC_Navigraph.getSID(procedureName)
+        procedure = ATC_Navigraph.getSID(procedureName)
     elseif procedureType == "STAR" then
-        procedure = DTC_Navigraph.getSTAR(procedureName)
+        procedure = ATC_Navigraph.getSTAR(procedureName)
     elseif procedureType == "APPROACH" then
-        procedure = DTC_Navigraph.getAPPROACH(procedureName)
+        procedure = ATC_Navigraph.getAPPROACH(procedureName)
     else
-        DTC_Navigraph.log("Неизвестный тип процедуры: " .. procedureType)
+        ATC_Navigraph.log("Неизвестный тип процедуры: " .. procedureType)
         return nil
     end
     
@@ -271,12 +271,12 @@ DTC_Navigraph.convertProcedureToMOOSE = function(procedureName, procedureType)
     }
     
     for i, wp in ipairs(procedure.waypoints) do
-        local waypointData = DTC_Navigraph.getWaypoint(wp.name)
+        local waypointData = ATC_Navigraph.getWaypoint(wp.name)
         if waypointData then
             local mooseWP = {
                 name = wp.name,
                 type = wp.type or waypointData.type,
-                coordinate = DTC_Navigraph.convertCoordinatesToMOOSE(waypointData.lat, waypointData.lon)
+                coordinate = ATC_Navigraph.convertCoordinatesToMOOSE(waypointData.lat, waypointData.lon)
             }
             
             if wp.altitude_min then
@@ -293,7 +293,7 @@ DTC_Navigraph.convertProcedureToMOOSE = function(procedureName, procedureType)
             
             table.insert(mooseProcedure.waypoints, mooseWP)
         else
-            DTC_Navigraph.log("Предупреждение: Путевая точка не найдена для процедуры " .. procedureName .. ": " .. wp.name)
+            ATC_Navigraph.log("Предупреждение: Путевая точка не найдена для процедуры " .. procedureName .. ": " .. wp.name)
         end
     end
     
@@ -301,21 +301,21 @@ DTC_Navigraph.convertProcedureToMOOSE = function(procedureName, procedureType)
 end
 
 -- Проверка наличия данных в новом формате
-DTC_Navigraph.hasNewFormatData = function(icao, path)
+ATC_Navigraph.hasNewFormatData = function(icao, path)
     if not icao then
-        icao = DTC_Navigraph.currentICAO
+        icao = ATC_Navigraph.currentICAO
     end
     
     if not path then
-        path = DTC_Navigraph.DEFAULT_DATA_PATH
+        path = ATC_Navigraph.DEFAULT_DATA_PATH
     end
     
-    return DTC_Navigraph.checkDataFileExists(path, icao)
+    return ATC_Navigraph.checkDataFileExists(path, icao)
 end
 
 -- Загрузка данных в старом формате (для обратной совместимости с OMSJ)
-DTC_Navigraph.loadLegacyData = function()
-    DTC_Navigraph.log("Загрузка данных в старом формате для обратной совместимости")
+ATC_Navigraph.loadLegacyData = function()
+    ATC_Navigraph.log("Загрузка данных в старом формате для обратной совместимости")
     
     -- Проверка наличия старых файлов данных
     local oldDataFiles = {
@@ -326,14 +326,14 @@ DTC_Navigraph.loadLegacyData = function()
         "OMSJ_Frequencies.lua"
     }
     
-    local dataPath = lfs.writedir() .. "Scripts/DTC_ATC/Data/"
+    local dataPath = lfs.writedir() .. "Scripts/ATC_Module/Data/"
     local allFilesExist = true
     
     for _, filename in ipairs(oldDataFiles) do
         local file = io.open(dataPath .. filename, "r")
         if not file then
             allFilesExist = false
-            DTC_Navigraph.log("Файл данных в старом формате не найден: " .. dataPath .. filename)
+            ATC_Navigraph.log("Файл данных в старом формате не найден: " .. dataPath .. filename)
             break
         else
             file:close()
@@ -341,43 +341,43 @@ DTC_Navigraph.loadLegacyData = function()
     end
     
     if not allFilesExist then
-        DTC_Navigraph.log("Не все файлы данных в старом формате найдены")
+        ATC_Navigraph.log("Не все файлы данных в старом формате найдены")
         return false
     end
     
     -- Загрузка данных из старых файлов
     local success, waypoints = pcall(function() return dofile(dataPath .. "OMSJ_Waypoints.lua") end)
     if not success then
-        DTC_Navigraph.log("Ошибка при загрузке OMSJ_Waypoints.lua: " .. tostring(waypoints))
+        ATC_Navigraph.log("Ошибка при загрузке OMSJ_Waypoints.lua: " .. tostring(waypoints))
         return false
     end
     
     local success, sid_data = pcall(function() return dofile(dataPath .. "OMSJ_SID_Data.lua") end)
     if not success then
-        DTC_Navigraph.log("Ошибка при загрузке OMSJ_SID_Data.lua: " .. tostring(sid_data))
+        ATC_Navigraph.log("Ошибка при загрузке OMSJ_SID_Data.lua: " .. tostring(sid_data))
         return false
     end
     
     local success, star_data = pcall(function() return dofile(dataPath .. "OMSJ_STAR_Data.lua") end)
     if not success then
-        DTC_Navigraph.log("Ошибка при загрузке OMSJ_STAR_Data.lua: " .. tostring(star_data))
+        ATC_Navigraph.log("Ошибка при загрузке OMSJ_STAR_Data.lua: " .. tostring(star_data))
         return false
     end
     
     local success, approach_data = pcall(function() return dofile(dataPath .. "OMSJ_Approach_Data.lua") end)
     if not success then
-        DTC_Navigraph.log("Ошибка при загрузке OMSJ_Approach_Data.lua: " .. tostring(approach_data))
+        ATC_Navigraph.log("Ошибка при загрузке OMSJ_Approach_Data.lua: " .. tostring(approach_data))
         return false
     end
     
     local success, frequencies = pcall(function() return dofile(dataPath .. "OMSJ_Frequencies.lua") end)
     if not success then
-        DTC_Navigraph.log("Ошибка при загрузке OMSJ_Frequencies.lua: " .. tostring(frequencies))
+        ATC_Navigraph.log("Ошибка при загрузке OMSJ_Frequencies.lua: " .. tostring(frequencies))
         return false
     end
     
     -- Создание структуры данных в новом формате
-    DTC_Navigraph.data = {
+    ATC_Navigraph.data = {
         Metadata = {
             ICAO = "OMSJ",
             Name = "Sharjah International Airport",
@@ -395,51 +395,51 @@ DTC_Navigraph.loadLegacyData = function()
                 heading = 120,
                 length = 4060,
                 width = 45,
-                threshold = { lat = 25.32, lon = 55.51 },
-                end = { lat = 25.31, lon = 55.53 }
+                rw_threshold = { lat = 25.32, lon = 55.51 },
+                rw_end = { lat = 25.31, lon = 55.53 }
             },
             ["30"] = {
                 heading = 300,
                 length = 4060,
                 width = 45,
-                threshold = { lat = 25.31, lon = 55.53 },
-                end = { lat = 25.32, lon = 55.51 }
+                rw_threshold = { lat = 25.31, lon = 55.53 },
+                rw_end = { lat = 25.32, lon = 55.51 }
             }
         }
     }
     
-    DTC_Navigraph.isDataLoaded = true
-    DTC_Navigraph.currentICAO = "OMSJ"
+    ATC_Navigraph.isDataLoaded = true
+    ATC_Navigraph.currentICAO = "OMSJ"
     
-    DTC_Navigraph.log("Данные в старом формате успешно загружены")
+    ATC_Navigraph.log("Данные в старом формате успешно загружены")
     return true
 end
 
 -- Преобразование данных из старого формата в новый
-DTC_Navigraph.convertLegacyToNewFormat = function(outputPath)
-    if not DTC_Navigraph.isDataLoaded then
-        DTC_Navigraph.log("Нет загруженных данных для преобразования")
+ATC_Navigraph.convertLegacyToNewFormat = function(outputPath)
+    if not ATC_Navigraph.isDataLoaded then
+        ATC_Navigraph.log("Нет загруженных данных для преобразования")
         return false
     end
     
     if not outputPath then
-        outputPath = DTC_Navigraph.DEFAULT_DATA_PATH
+        outputPath = ATC_Navigraph.DEFAULT_DATA_PATH
     end
     
     -- Проверка существования директории
     local success = os.execute("mkdir -p " .. outputPath)
     if not success then
-        DTC_Navigraph.log("Ошибка при создании директории: " .. outputPath)
+        ATC_Navigraph.log("Ошибка при создании директории: " .. outputPath)
         return false
     end
     
-    local filename = DTC_Navigraph.currentICAO .. "_MOOSE.lua"
+    local filename = ATC_Navigraph.currentICAO .. "_MOOSE.lua"
     local fullPath = outputPath .. filename
     
     -- Создание файла
     local file = io.open(fullPath, "w")
     if not file then
-        DTC_Navigraph.log("Ошибка при создании файла: " .. fullPath)
+        ATC_Navigraph.log("Ошибка при создании файла: " .. fullPath)
         return false
     end
     
@@ -449,17 +449,17 @@ DTC_Navigraph.convertLegacyToNewFormat = function(outputPath)
     -- Метаданные
     file:write("    -- Метаданные аэропорта\n")
     file:write("    Metadata = {\n")
-    file:write("        ICAO = \"" .. DTC_Navigraph.data.Metadata.ICAO .. "\",\n")
-    file:write("        Name = \"" .. DTC_Navigraph.data.Metadata.Name .. "\",\n")
-    file:write("        Elevation = " .. DTC_Navigraph.data.Metadata.Elevation .. ",\n")
-    file:write("        MagVar = " .. DTC_Navigraph.data.Metadata.MagVar .. ",\n")
-    file:write("        Region = \"" .. DTC_Navigraph.data.Metadata.Region .. "\"\n")
+    file:write("        ICAO = \"" .. ATC_Navigraph.data.Metadata.ICAO .. "\",\n")
+    file:write("        Name = \"" .. ATC_Navigraph.data.Metadata.Name .. "\",\n")
+    file:write("        Elevation = " .. ATC_Navigraph.data.Metadata.Elevation .. ",\n")
+    file:write("        MagVar = " .. ATC_Navigraph.data.Metadata.MagVar .. ",\n")
+    file:write("        Region = \"" .. ATC_Navigraph.data.Metadata.Region .. "\"\n")
     file:write("    },\n\n")
     
     -- Путевые точки
     file:write("    -- Путевые точки\n")
     file:write("    Waypoints = {\n")
-    for name, data in pairs(DTC_Navigraph.data.Waypoints) do
+    for name, data in pairs(ATC_Navigraph.data.Waypoints) do
         file:write("        [\"" .. name .. "\"] = { lat = " .. data.lat .. ", lon = " .. data.lon .. ", type = \"" .. (data.type or "FIX") .. "\"")
         if data.frequency then
             file:write(", frequency = " .. data.frequency)
@@ -480,13 +480,13 @@ DTC_Navigraph.convertLegacyToNewFormat = function(outputPath)
     -- ВПП
     file:write("    -- Данные ВПП\n")
     file:write("    Runways = {\n")
-    for name, data in pairs(DTC_Navigraph.data.Runways) do
+    for name, data in pairs(ATC_Navigraph.data.Runways) do
         file:write("        [\"" .. name .. "\"] = {\n")
         file:write("            heading = " .. data.heading .. ",\n")
         file:write("            length = " .. data.length .. ",\n")
         file:write("            width = " .. data.width .. ",\n")
-        file:write("            threshold = { lat = " .. data.threshold.lat .. ", lon = " .. data.threshold.lon .. " },\n")
-        file:write("            end = { lat = " .. data.end.lat .. ", lon = " .. data.end.lon .. " }\n")
+        file:write("            rw_threshold = { lat = " .. data.rw_threshold.lat .. ", lon = " .. data.rw_threshold.lon .. " },\n")
+        file:write("            rw_end = { lat = " .. data.rw_end.lat .. ", lon = " .. data.rw_end.lon .. " }\n")
         file:write("        },\n")
     end
     file:write("    },\n\n")
@@ -494,13 +494,13 @@ DTC_Navigraph.convertLegacyToNewFormat = function(outputPath)
     -- SID
     file:write("    -- Процедуры SID\n")
     file:write("    SID = {\n")
-    for name, data in pairs(DTC_Navigraph.data.SID) do
+    for name, data in pairs(ATC_Navigraph.data.SID) do
         file:write("        [\"" .. name .. "\"] = {\n")
         file:write("            name = \"" .. data.name .. "\",\n")
         file:write("            runway = \"" .. data.runway .. "\",\n")
         file:write("            waypoints = {\n")
         for _, wp in ipairs(data.waypoints) do
-            file:write("                { name = \"" .. wp.name .. "\", type = \"" .. (wp.type or "FIX") .. "\"")
+            file:write("                { name = \"" .. wp.name .. "\"")
             if wp.altitude_min then
                 file:write(", altitude_min = " .. wp.altitude_min)
             end
@@ -520,13 +520,13 @@ DTC_Navigraph.convertLegacyToNewFormat = function(outputPath)
     -- STAR
     file:write("    -- Процедуры STAR\n")
     file:write("    STAR = {\n")
-    for name, data in pairs(DTC_Navigraph.data.STAR) do
+    for name, data in pairs(ATC_Navigraph.data.STAR) do
         file:write("        [\"" .. name .. "\"] = {\n")
         file:write("            name = \"" .. data.name .. "\",\n")
         file:write("            runway = \"" .. data.runway .. "\",\n")
         file:write("            waypoints = {\n")
         for _, wp in ipairs(data.waypoints) do
-            file:write("                { name = \"" .. wp.name .. "\", type = \"" .. (wp.type or "FIX") .. "\"")
+            file:write("                { name = \"" .. wp.name .. "\"")
             if wp.altitude_min then
                 file:write(", altitude_min = " .. wp.altitude_min)
             end
@@ -544,16 +544,16 @@ DTC_Navigraph.convertLegacyToNewFormat = function(outputPath)
     file:write("    },\n\n")
     
     -- APPROACH
-    file:write("    -- Процедуры захода на посадку\n")
+    file:write("    -- Процедуры APPROACH\n")
     file:write("    APPROACH = {\n")
-    for name, data in pairs(DTC_Navigraph.data.APPROACH) do
+    for name, data in pairs(ATC_Navigraph.data.APPROACH) do
         file:write("        [\"" .. name .. "\"] = {\n")
         file:write("            name = \"" .. data.name .. "\",\n")
         file:write("            type = \"" .. data.type .. "\",\n")
         file:write("            runway = \"" .. data.runway .. "\",\n")
         file:write("            waypoints = {\n")
         for _, wp in ipairs(data.waypoints) do
-            file:write("                { name = \"" .. wp.name .. "\", type = \"" .. (wp.type or "FIX") .. "\"")
+            file:write("                { name = \"" .. wp.name .. "\"")
             if wp.altitude_min then
                 file:write(", altitude_min = " .. wp.altitude_min)
             end
@@ -570,11 +570,11 @@ DTC_Navigraph.convertLegacyToNewFormat = function(outputPath)
     end
     file:write("    },\n\n")
     
-    -- Частоты
+    -- Frequencies
     file:write("    -- Частоты\n")
     file:write("    Frequencies = {\n")
-    for service, freq in pairs(DTC_Navigraph.data.Frequencies) do
-        file:write("        " .. service .. " = " .. freq .. ",\n")
+    for name, freq in pairs(ATC_Navigraph.data.Frequencies) do
+        file:write("        [\"" .. name .. "\"] = " .. freq .. ",\n")
     end
     file:write("    }\n")
     
@@ -583,8 +583,8 @@ DTC_Navigraph.convertLegacyToNewFormat = function(outputPath)
     
     file:close()
     
-    DTC_Navigraph.log("Данные успешно преобразованы и сохранены в файл: " .. fullPath)
+    ATC_Navigraph.log("Данные успешно преобразованы и сохранены в файл: " .. fullPath)
     return true
 end
 
-return DTC_Navigraph
+return ATC_Navigraph

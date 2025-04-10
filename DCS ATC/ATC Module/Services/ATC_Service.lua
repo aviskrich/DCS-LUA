@@ -1,19 +1,20 @@
 --[[
-DTC_ATC_Service.lua
+ATC_Service.lua
 Базовый класс службы ATC для универсального ATC модуля
-Автор: AVIskrich
+Автор: Andrey Iskrich
 Дата: Апрель 2025
 --]]
 
-local DTC_ATC_Service = {}
+local ATC_Service = {}
 
 -- Создание новой службы ATC
-DTC_ATC_Service.new = function(icao, callsign, frequency, range)
+ATC_Service.new = function(icao, callsign, frequency, range, coalition)
     local service = {
         icao = icao,
         callsign = callsign,
         frequency = frequency,
         range = range or 50,  -- Дальность в морских милях по умолчанию
+        coalition = coalition, -- Коалиция, к которой относится служба ATC
         isActive = false,
         trackedObjects = {},
         lastMessages = {},
@@ -22,7 +23,7 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
     
     -- Логирование
     service.log = function(self, message)
-        if DTC_Config and DTC_Config.DEBUG then
+        if ATC_Config and ATC_Config.DEBUG then
             env.info("[" .. self.callsign .. "] " .. message)
         end
     end
@@ -32,8 +33,8 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
         self:log("Инициализация службы ATC")
         
         -- Регистрация обработчиков фраз SRS
-        if DTC_SRS and DTC_SRS.isInitialized then
-            DTC_SRS.registerStandardPhraseHandlers(self)
+        if ATC_SRS and ATC_SRS.isInitialized then
+            ATC_SRS.registerStandardPhraseHandlers(self)
         end
         
         return true
@@ -77,13 +78,24 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
     -- Получение координат службы
     service.getCoordinate = function(self)
         -- Получение координат аэропорта (используем первую ВПП)
-        local runways = DTC_Navigraph.getAllRunways()
+        local runways = ATC_Navigraph.getAllRunways()
         
         for name, runway in pairs(runways) do
             return COORDINATE:NewFromLLDD(runway.threshold.lat, runway.threshold.lon)
         end
         
         return nil
+    end
+    
+    -- Проверка, принадлежит ли объект к коалиции службы
+    service.isObjectInCoalition = function(self, object)
+        -- Если коалиция не указана, обслуживаем все объекты
+        if not self.coalition then
+            return true
+        end
+        
+        -- Проверка коалиции объекта
+        return ATC_Utils.isObjectInCoalition(object, self.coalition)
     end
     
     -- Проверка объектов в зоне ответственности
@@ -99,11 +111,14 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
         end
         
         -- Получение объектов в зоне ответственности
-        local objects = DTC_Utils.getObjectsInRange(serviceCoord, self.range)
+        local objects = ATC_Utils.getObjectsInRange(serviceCoord, self.range)
         
         -- Обновление списка отслеживаемых объектов
         for _, object in pairs(objects) do
-            if object:isExist() and object:getCategory() == Object.Category.UNIT and object:getDesc().category == Unit.Category.AIRPLANE then
+            if object:isExist() and object:getCategory() == Object.Category.UNIT and 
+               object:getDesc().category == Unit.Category.AIRPLANE and
+               self:isObjectInCoalition(object) then
+                
                 local objectID = object:getID()
                 
                 if not self.trackedObjects[objectID] then
@@ -113,7 +128,7 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
                         object = object,
                         firstSeen = timer.getTime(),
                         lastSeen = timer.getTime(),
-                        isPlayer = DTC_Utils.isPlayer(object),
+                        isPlayer = ATC_Utils.isPlayer(object),
                         callsign = object:getCallsign() or "Unknown",
                         type = object:getTypeName() or "Unknown"
                     }
@@ -170,8 +185,8 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
         local fullMessage = self.callsign .. ": " .. message
         
         -- Отправка сообщения через SRS, если доступно
-        if DTC_SRS and DTC_SRS.isInitialized then
-            local success = DTC_SRS.sendVoiceMessage(fullMessage, self.frequency, "AM")
+        if ATC_SRS and ATC_SRS.isInitialized then
+            local success = ATC_SRS.sendVoiceMessage(fullMessage, self.frequency, "AM", self.coalition)
             
             if success then
                 self:log("Отправлено сообщение через SRS: " .. fullMessage)
@@ -218,8 +233,8 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
         local fullMessage = self.callsign .. ": " .. message
         
         -- Отправка сообщения через SRS, если доступно
-        if DTC_SRS and DTC_SRS.isInitialized then
-            local success = DTC_SRS.sendVoiceMessage(fullMessage, self.frequency, "AM")
+        if ATC_SRS and ATC_SRS.isInitialized then
+            local success = ATC_SRS.sendVoiceMessage(fullMessage, self.frequency, "AM", self.coalition)
             
             if success then
                 self:log("Отправлено широковещательное сообщение через SRS: " .. fullMessage)
@@ -293,7 +308,7 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
         end
         
         -- Получение информации ATIS
-        local atisInfo = DTC_Utils.getATISInfo(self.icao)
+        local atisInfo = ATC_Utils.getATISInfo(self.icao)
         
         -- Отправка информации ATIS
         self:sendMessage(object, atisInfo)
@@ -311,8 +326,8 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
         local objectCoord = object:GetCoordinate()
         
         -- Получение информации о погоде
-        local weather = DTC_Utils.getWeatherInfo(objectCoord)
-        local weatherInfo = DTC_Utils.formatWeatherInfo(weather)
+        local weather = ATC_Utils.getWeatherInfo(objectCoord)
+        local weatherInfo = ATC_Utils.formatWeatherInfo(weather)
         
         -- Отправка информации о погоде
         self:sendMessage(object, weatherInfo)
@@ -327,8 +342,8 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
         end
         
         -- Получение информации о трафике
-        local traffic = DTC_Utils.getTrafficInfo(object, 10)
-        local trafficInfo = DTC_Utils.formatTrafficInfo(traffic)
+        local traffic = ATC_Utils.getTrafficInfo(object, 10)
+        local trafficInfo = ATC_Utils.formatTrafficInfo(traffic)
         
         -- Отправка информации о трафике
         self:sendMessage(object, trafficInfo)
@@ -372,4 +387,4 @@ DTC_ATC_Service.new = function(icao, callsign, frequency, range)
     return service
 end
 
-return DTC_ATC_Service
+return ATC_Service

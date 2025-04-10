@@ -1,14 +1,14 @@
 --[[
-DTC_MonitoringManager.lua
+ATC_MonitoringManager.lua
 Модуль для мониторинга исполнения процедур для универсального ATC модуля
-Автор: AVIskrich
+Автор: Andrey Iskrich
 Дата: Апрель 2025
 --]]
 
-local DTC_MonitoringManager = {}
+local ATC_MonitoringManager = {}
 
 -- Настройки мониторинга
-DTC_MonitoringManager.settings = {
+ATC_MonitoringManager.settings = {
     enabled = true,
     lateralDeviationThreshold = 1.0,  -- Порог бокового отклонения в морских милях
     verticalDeviationThreshold = 500,  -- Порог вертикального отклонения в футах
@@ -16,52 +16,52 @@ DTC_MonitoringManager.settings = {
 }
 
 -- Таблица для хранения отслеживаемых объектов
-DTC_MonitoringManager.trackedObjects = {}
+ATC_MonitoringManager.trackedObjects = {}
 
 -- Таблица для хранения последних уведомлений
-DTC_MonitoringManager.lastNotifications = {}
+ATC_MonitoringManager.lastNotifications = {}
 
 -- Логирование
-DTC_MonitoringManager.log = function(message)
-    if DTC_Config and DTC_Config.DEBUG then
-        env.info("[DTC_MonitoringManager] " .. message)
+ATC_MonitoringManager.log = function(message)
+    if ATC_Config and ATC_Config.DEBUG then
+        env.info("[ATC_MonitoringManager] " .. message)
     end
 end
 
 -- Инициализация модуля
-DTC_MonitoringManager.init = function()
-    DTC_MonitoringManager.log("Инициализация модуля мониторинга")
+ATC_MonitoringManager.init = function()
+    ATC_MonitoringManager.log("Инициализация модуля мониторинга")
     
     -- Загрузка настроек из конфигурации
-    if DTC_Config and DTC_Config.MONITORING then
-        DTC_MonitoringManager.settings.enabled = DTC_Config.MONITORING.ENABLED
-        DTC_MonitoringManager.settings.lateralDeviationThreshold = DTC_Config.MONITORING.LATERAL_DEVIATION_THRESHOLD
-        DTC_MonitoringManager.settings.verticalDeviationThreshold = DTC_Config.MONITORING.VERTICAL_DEVIATION_THRESHOLD
-        DTC_MonitoringManager.settings.notificationInterval = DTC_Config.MONITORING.NOTIFICATION_INTERVAL
+    if ATC_Config and ATC_Config.MONITORING then
+        ATC_MonitoringManager.settings.enabled = ATC_Config.MONITORING.ENABLED
+        ATC_MonitoringManager.settings.lateralDeviationThreshold = ATC_Config.MONITORING.LATERAL_DEVIATION_THRESHOLD
+        ATC_MonitoringManager.settings.verticalDeviationThreshold = ATC_Config.MONITORING.VERTICAL_DEVIATION_THRESHOLD
+        ATC_MonitoringManager.settings.notificationInterval = ATC_Config.MONITORING.NOTIFICATION_INTERVAL
     end
     
     -- Проверка, включен ли мониторинг
-    if not DTC_MonitoringManager.settings.enabled then
-        DTC_MonitoringManager.log("Мониторинг отключен в настройках")
+    if not ATC_MonitoringManager.settings.enabled then
+        ATC_MonitoringManager.log("Мониторинг отключен в настройках")
         return false
     end
     
     -- Запуск планировщика для регулярной проверки отклонений
-    DTC_MonitoringManager.startScheduler()
+    ATC_MonitoringManager.startScheduler()
     
     return true
 end
 
 -- Запуск планировщика для регулярной проверки отклонений
-DTC_MonitoringManager.startScheduler = function()
-    DTC_MonitoringManager.log("Запуск планировщика мониторинга")
+ATC_MonitoringManager.startScheduler = function()
+    ATC_MonitoringManager.log("Запуск планировщика мониторинга")
     
     -- Создание планировщика с интервалом 5 секунд
-    mist.scheduleFunction(DTC_MonitoringManager.checkAllDeviations, {}, timer.getTime() + 5, 5)
+    mist.scheduleFunction(ATC_MonitoringManager.checkAllDeviations, {}, timer.getTime() + 5, 5)
 end
 
 -- Добавление объекта для отслеживания
-DTC_MonitoringManager.trackObject = function(object, procedure, procedureType, atcService)
+ATC_MonitoringManager.trackObject = function(object, procedure, procedureType, atcService)
     if not object or not procedure or not procedureType or not atcService then
         return false
     end
@@ -69,11 +69,11 @@ DTC_MonitoringManager.trackObject = function(object, procedure, procedureType, a
     local objectID = object:GetID()
     
     -- Проверка, отслеживается ли уже объект
-    if DTC_MonitoringManager.trackedObjects[objectID] then
-        DTC_MonitoringManager.log("Объект уже отслеживается: " .. objectID)
+    if ATC_MonitoringManager.trackedObjects[objectID] then
+        ATC_MonitoringManager.log("Объект уже отслеживается: " .. objectID)
         
         -- Обновление данных отслеживания
-        DTC_MonitoringManager.trackedObjects[objectID] = {
+        ATC_MonitoringManager.trackedObjects[objectID] = {
             object = object,
             procedure = procedure,
             procedureType = procedureType,
@@ -83,12 +83,12 @@ DTC_MonitoringManager.trackObject = function(object, procedure, procedureType, a
             deviations = {}
         }
         
-        DTC_MonitoringManager.log("Обновлены данные отслеживания для объекта: " .. objectID)
+        ATC_MonitoringManager.log("Обновлены данные отслеживания для объекта: " .. objectID)
         return true
     end
     
     -- Добавление объекта для отслеживания
-    DTC_MonitoringManager.trackedObjects[objectID] = {
+    ATC_MonitoringManager.trackedObjects[objectID] = {
         object = object,
         procedure = procedure,
         procedureType = procedureType,
@@ -98,12 +98,12 @@ DTC_MonitoringManager.trackObject = function(object, procedure, procedureType, a
         deviations = {}
     }
     
-    DTC_MonitoringManager.log("Добавлен объект для отслеживания: " .. objectID)
+    ATC_MonitoringManager.log("Добавлен объект для отслеживания: " .. objectID)
     return true
 end
 
 -- Прекращение отслеживания объекта
-DTC_MonitoringManager.stopTrackingObject = function(object)
+ATC_MonitoringManager.stopTrackingObject = function(object)
     if not object then
         return false
     end
@@ -111,68 +111,68 @@ DTC_MonitoringManager.stopTrackingObject = function(object)
     local objectID = object:GetID()
     
     -- Проверка, отслеживается ли объект
-    if not DTC_MonitoringManager.trackedObjects[objectID] then
-        DTC_MonitoringManager.log("Объект не отслеживается: " .. objectID)
+    if not ATC_MonitoringManager.trackedObjects[objectID] then
+        ATC_MonitoringManager.log("Объект не отслеживается: " .. objectID)
         return false
     end
     
     -- Удаление объекта из отслеживаемых
-    DTC_MonitoringManager.trackedObjects[objectID] = nil
-    DTC_MonitoringManager.lastNotifications[objectID] = nil
+    ATC_MonitoringManager.trackedObjects[objectID] = nil
+    ATC_MonitoringManager.lastNotifications[objectID] = nil
     
-    DTC_MonitoringManager.log("Прекращено отслеживание объекта: " .. objectID)
+    ATC_MonitoringManager.log("Прекращено отслеживание объекта: " .. objectID)
     return true
 end
 
 -- Проверка отклонений для всех отслеживаемых объектов
-DTC_MonitoringManager.checkAllDeviations = function()
-    if not DTC_MonitoringManager.settings.enabled then
+ATC_MonitoringManager.checkAllDeviations = function()
+    if not ATC_MonitoringManager.settings.enabled then
         return
     end
     
     local currentTime = timer.getTime()
     
-    for objectID, trackData in pairs(DTC_MonitoringManager.trackedObjects) do
+    for objectID, trackData in pairs(ATC_MonitoringManager.trackedObjects) do
         -- Проверка, существует ли еще объект
         if not trackData.object or not trackData.object:isExist() then
-            DTC_MonitoringManager.log("Объект больше не существует, прекращение отслеживания: " .. objectID)
-            DTC_MonitoringManager.trackedObjects[objectID] = nil
-            DTC_MonitoringManager.lastNotifications[objectID] = nil
+            ATC_MonitoringManager.log("Объект больше не существует, прекращение отслеживания: " .. objectID)
+            ATC_MonitoringManager.trackedObjects[objectID] = nil
+            ATC_MonitoringManager.lastNotifications[objectID] = nil
         else
             -- Проверка отклонений
-            DTC_MonitoringManager.checkObjectDeviations(objectID, trackData, currentTime)
+            ATC_MonitoringManager.checkObjectDeviations(objectID, trackData, currentTime)
         end
     end
 end
 
 -- Проверка отклонений для конкретного объекта
-DTC_MonitoringManager.checkObjectDeviations = function(objectID, trackData, currentTime)
+ATC_MonitoringManager.checkObjectDeviations = function(objectID, trackData, currentTime)
     local object = trackData.object
     local procedure = trackData.procedure
     local procedureType = trackData.procedureType
     
     -- Получение текущей позиции объекта
     local objectCoord = object:GetCoordinate()
-    local objectAltitude = DTC_Utils.getAltitude(object)
+    local objectAltitude = ATC_Utils.getAltitude(object)
     
     -- Получение ближайшей точки процедуры
-    local nearestWaypoint = DTC_Procedures.getNearestProcedureWaypoint(object, procedure, procedureType)
+    local nearestWaypoint = ATC_Procedures.getNearestProcedureWaypoint(object, procedure, procedureType)
     
     if not nearestWaypoint then
         return
     end
     
     -- Получение следующей точки процедуры
-    local nextWaypoint = DTC_Procedures.getNextProcedureWaypoint(procedure, procedureType, nearestWaypoint.name)
+    local nextWaypoint = ATC_Procedures.getNextProcedureWaypoint(procedure, procedureType, nearestWaypoint.name)
     
     -- Проверка бокового отклонения
-    local lateralDeviation = DTC_MonitoringManager.checkLateralDeviation(object, nearestWaypoint, nextWaypoint)
+    local lateralDeviation = ATC_MonitoringManager.checkLateralDeviation(object, nearestWaypoint, nextWaypoint)
     
     -- Проверка вертикального отклонения
-    local verticalDeviation = DTC_MonitoringManager.checkVerticalDeviation(object, procedure, procedureType, nearestWaypoint.name)
+    local verticalDeviation = ATC_MonitoringManager.checkVerticalDeviation(object, procedure, procedureType, nearestWaypoint.name)
     
     -- Проверка отклонения по скорости
-    local speedDeviation = DTC_MonitoringManager.checkSpeedDeviation(object, procedure, procedureType, nearestWaypoint.name)
+    local speedDeviation = ATC_MonitoringManager.checkSpeedDeviation(object, procedure, procedureType, nearestWaypoint.name)
     
     -- Обработка обнаруженных отклонений
     if lateralDeviation or verticalDeviation or speedDeviation then
@@ -186,20 +186,20 @@ DTC_MonitoringManager.checkObjectDeviations = function(objectID, trackData, curr
         })
         
         -- Проверка, нужно ли отправлять уведомление
-        local shouldNotify = DTC_MonitoringManager.shouldSendNotification(objectID, currentTime)
+        local shouldNotify = ATC_MonitoringManager.shouldSendNotification(objectID, currentTime)
         
         if shouldNotify then
             -- Отправка уведомления
-            DTC_MonitoringManager.sendDeviationNotification(object, trackData.atcService, lateralDeviation, verticalDeviation, speedDeviation, nearestWaypoint.name)
+            ATC_MonitoringManager.sendDeviationNotification(object, trackData.atcService, lateralDeviation, verticalDeviation, speedDeviation, nearestWaypoint.name)
             
             -- Обновление времени последнего уведомления
-            DTC_MonitoringManager.lastNotifications[objectID] = currentTime
+            ATC_MonitoringManager.lastNotifications[objectID] = currentTime
         end
     end
 end
 
 -- Проверка бокового отклонения
-DTC_MonitoringManager.checkLateralDeviation = function(object, nearestWaypoint, nextWaypoint)
+ATC_MonitoringManager.checkLateralDeviation = function(object, nearestWaypoint, nextWaypoint)
     if not object or not nearestWaypoint then
         return nil
     end
@@ -209,13 +209,13 @@ DTC_MonitoringManager.checkLateralDeviation = function(object, nearestWaypoint, 
     
     -- Если нет следующей точки, просто проверяем расстояние до ближайшей
     if not nextWaypoint then
-        local distance = DTC_Utils.getDistance(objectCoord, waypointCoord)
+        local distance = ATC_Utils.getDistance(objectCoord, waypointCoord)
         
-        if distance > DTC_MonitoringManager.settings.lateralDeviationThreshold then
+        if distance > ATC_MonitoringManager.settings.lateralDeviationThreshold then
             return {
                 type = "waypoint",
                 distance = distance,
-                threshold = DTC_MonitoringManager.settings.lateralDeviationThreshold
+                threshold = ATC_MonitoringManager.settings.lateralDeviationThreshold
             }
         end
         
@@ -226,20 +226,20 @@ DTC_MonitoringManager.checkLateralDeviation = function(object, nearestWaypoint, 
     local nextWaypointCoord = COORDINATE:NewFromLLDD(nextWaypoint.waypointData.lat, nextWaypoint.waypointData.lon)
     
     -- Расчет отклонения от линии (упрощенный алгоритм)
-    local totalDistance = DTC_Utils.getDistance(waypointCoord, nextWaypointCoord)
-    local distanceToNearest = DTC_Utils.getDistance(objectCoord, waypointCoord)
-    local distanceToNext = DTC_Utils.getDistance(objectCoord, nextWaypointCoord)
+    local totalDistance = ATC_Utils.getDistance(waypointCoord, nextWaypointCoord)
+    local distanceToNearest = ATC_Utils.getDistance(objectCoord, waypointCoord)
+    local distanceToNext = ATC_Utils.getDistance(objectCoord, nextWaypointCoord)
     
     -- Используем формулу Герона для расчета высоты треугольника
     local s = (totalDistance + distanceToNearest + distanceToNext) / 2
     local area = math.sqrt(s * (s - totalDistance) * (s - distanceToNearest) * (s - distanceToNext))
     local deviation = 2 * area / totalDistance
     
-    if deviation > DTC_MonitoringManager.settings.lateralDeviationThreshold then
+    if deviation > ATC_MonitoringManager.settings.lateralDeviationThreshold then
         return {
             type = "route",
             distance = deviation,
-            threshold = DTC_MonitoringManager.settings.lateralDeviationThreshold
+            threshold = ATC_MonitoringManager.settings.lateralDeviationThreshold
         }
     end
     
@@ -247,35 +247,35 @@ DTC_MonitoringManager.checkLateralDeviation = function(object, nearestWaypoint, 
 end
 
 -- Проверка вертикального отклонения
-DTC_MonitoringManager.checkVerticalDeviation = function(object, procedure, procedureType, waypointName)
+ATC_MonitoringManager.checkVerticalDeviation = function(object, procedure, procedureType, waypointName)
     if not object or not procedure or not procedureType or not waypointName then
         return nil
     end
     
-    local restrictions = DTC_Procedures.getAltitudeRestrictions(procedure, procedureType, waypointName)
+    local restrictions = ATC_Procedures.getAltitudeRestrictions(procedure, procedureType, waypointName)
     if not restrictions then
         return nil
     end
     
-    local altitude = DTC_Utils.getAltitude(object)
+    local altitude = ATC_Utils.getAltitude(object)
     
-    if restrictions.min and altitude < restrictions.min - DTC_MonitoringManager.settings.verticalDeviationThreshold then
+    if restrictions.min and altitude < restrictions.min - ATC_MonitoringManager.settings.verticalDeviationThreshold then
         return {
             type = "below",
             actual = altitude,
             required = restrictions.min,
             difference = restrictions.min - altitude,
-            threshold = DTC_MonitoringManager.settings.verticalDeviationThreshold
+            threshold = ATC_MonitoringManager.settings.verticalDeviationThreshold
         }
     end
     
-    if restrictions.max and altitude > restrictions.max + DTC_MonitoringManager.settings.verticalDeviationThreshold then
+    if restrictions.max and altitude > restrictions.max + ATC_MonitoringManager.settings.verticalDeviationThreshold then
         return {
             type = "above",
             actual = altitude,
             required = restrictions.max,
             difference = altitude - restrictions.max,
-            threshold = DTC_MonitoringManager.settings.verticalDeviationThreshold
+            threshold = ATC_MonitoringManager.settings.verticalDeviationThreshold
         }
     end
     
@@ -283,17 +283,17 @@ DTC_MonitoringManager.checkVerticalDeviation = function(object, procedure, proce
 end
 
 -- Проверка отклонения по скорости
-DTC_MonitoringManager.checkSpeedDeviation = function(object, procedure, procedureType, waypointName)
+ATC_MonitoringManager.checkSpeedDeviation = function(object, procedure, procedureType, waypointName)
     if not object or not procedure or not procedureType or not waypointName then
         return nil
     end
     
-    local restriction = DTC_Procedures.getSpeedRestrictions(procedure, procedureType, waypointName)
+    local restriction = ATC_Procedures.getSpeedRestrictions(procedure, procedureType, waypointName)
     if not restriction then
         return nil
     end
     
-    local speed = DTC_Utils.getSpeed(object)
+    local speed = ATC_Utils.getSpeed(object)
     
     if speed > restriction + 20 then  -- Допуск 20 узлов
         return {
@@ -309,25 +309,25 @@ DTC_MonitoringManager.checkSpeedDeviation = function(object, procedure, procedur
 end
 
 -- Проверка, нужно ли отправлять уведомление
-DTC_MonitoringManager.shouldSendNotification = function(objectID, currentTime)
+ATC_MonitoringManager.shouldSendNotification = function(objectID, currentTime)
     -- Проверка, было ли уже отправлено уведомление для этого объекта
-    if not DTC_MonitoringManager.lastNotifications[objectID] then
+    if not ATC_MonitoringManager.lastNotifications[objectID] then
         return true
     end
     
     -- Проверка, прошло ли достаточно времени с момента последнего уведомления
-    local timeSinceLastNotification = currentTime - DTC_MonitoringManager.lastNotifications[objectID]
+    local timeSinceLastNotification = currentTime - ATC_MonitoringManager.lastNotifications[objectID]
     
-    return timeSinceLastNotification >= DTC_MonitoringManager.settings.notificationInterval
+    return timeSinceLastNotification >= ATC_MonitoringManager.settings.notificationInterval
 end
 
 -- Отправка уведомления об отклонении
-DTC_MonitoringManager.sendDeviationNotification = function(object, atcService, lateralDeviation, verticalDeviation, speedDeviation, waypointName)
+ATC_MonitoringManager.sendDeviationNotification = function(object, atcService, lateralDeviation, verticalDeviation, speedDeviation, waypointName)
     if not object or not atcService then
         return
     end
     
-    local playerName = DTC_Utils.getPlayerName(object)
+    local playerName = ATC_Utils.getPlayerName(object)
     if not playerName then
         return
     end
@@ -355,11 +355,11 @@ DTC_MonitoringManager.sendDeviationNotification = function(object, atcService, l
     -- Отправка сообщения через службу ATC
     atcService:sendMessage(object, message)
     
-    DTC_MonitoringManager.log("Отправлено уведомление об отклонении для " .. callsign .. ": " .. message)
+    ATC_MonitoringManager.log("Отправлено уведомление об отклонении для " .. callsign .. ": " .. message)
 end
 
 -- Получение статистики отклонений для объекта
-DTC_MonitoringManager.getDeviationStats = function(object)
+ATC_MonitoringManager.getDeviationStats = function(object)
     if not object then
         return nil
     end
@@ -367,11 +367,11 @@ DTC_MonitoringManager.getDeviationStats = function(object)
     local objectID = object:GetID()
     
     -- Проверка, отслеживается ли объект
-    if not DTC_MonitoringManager.trackedObjects[objectID] then
+    if not ATC_MonitoringManager.trackedObjects[objectID] then
         return nil
     end
     
-    local trackData = DTC_MonitoringManager.trackedObjects[objectID]
+    local trackData = ATC_MonitoringManager.trackedObjects[objectID]
     local stats = {
         totalDeviations = #trackData.deviations,
         lateralDeviations = 0,
@@ -407,7 +407,7 @@ DTC_MonitoringManager.getDeviationStats = function(object)
 end
 
 -- Оценка выполнения процедуры
-DTC_MonitoringManager.evaluateProcedurePerformance = function(object)
+ATC_MonitoringManager.evaluateProcedurePerformance = function(object)
     if not object then
         return nil
     end
@@ -415,12 +415,12 @@ DTC_MonitoringManager.evaluateProcedurePerformance = function(object)
     local objectID = object:GetID()
     
     -- Проверка, отслеживается ли объект
-    if not DTC_MonitoringManager.trackedObjects[objectID] then
+    if not ATC_MonitoringManager.trackedObjects[objectID] then
         return nil
     end
     
-    local trackData = DTC_MonitoringManager.trackedObjects[objectID]
-    local stats = DTC_MonitoringManager.getDeviationStats(object)
+    local trackData = ATC_MonitoringManager.trackedObjects[objectID]
+    local stats = ATC_MonitoringManager.getDeviationStats(object)
     
     if not stats then
         return nil
@@ -432,77 +432,77 @@ DTC_MonitoringManager.evaluateProcedurePerformance = function(object)
     -- Штраф за боковые отклонения
     if stats.totalDeviations > 0 then
         local lateralPenalty = stats.lateralDeviations * 5
-        local verticalPenalty = stats.verticalDeviations * 5
+        local verticalPenalty = stats.verticalDeviations * 10
         local speedPenalty = stats.speedDeviations * 3
         
         score = score - lateralPenalty - verticalPenalty - speedPenalty
     end
     
-    -- Ограничение оценки минимумом 0
-    score = math.max(0, score)
-    
-    -- Определение категории оценки
-    local category = "Отлично"
-    
-    if score < 60 then
-        category = "Неудовлетворительно"
-    elseif score < 70 then
-        category = "Удовлетворительно"
-    elseif score < 85 then
-        category = "Хорошо"
-    elseif score < 95 then
-        category = "Очень хорошо"
-    end
+    -- Ограничение оценки от 0 до 100
+    score = math.max(0, math.min(100, score))
     
     return {
         score = score,
-        category = category,
-        stats = stats
+        stats = stats,
+        grade = ATC_MonitoringManager.getGradeFromScore(score)
     }
 end
 
--- Отправка оценки выполнения процедуры
-DTC_MonitoringManager.sendPerformanceEvaluation = function(object, atcService)
-    if not object or not atcService then
-        return
+-- Получение оценки по шкале от A до F
+ATC_MonitoringManager.getGradeFromScore = function(score)
+    if score >= 90 then
+        return "A"
+    elseif score >= 80 then
+        return "B"
+    elseif score >= 70 then
+        return "C"
+    elseif score >= 60 then
+        return "D"
+    elseif score >= 50 then
+        return "E"
+    else
+        return "F"
+    end
+end
+
+-- Получение отчета о выполнении процедуры
+ATC_MonitoringManager.getProcedureReport = function(object)
+    if not object then
+        return "Отчет недоступен"
     end
     
-    local evaluation = DTC_MonitoringManager.evaluateProcedurePerformance(object)
+    local objectID = object:GetID()
+    
+    -- Проверка, отслеживается ли объект
+    if not ATC_MonitoringManager.trackedObjects[objectID] then
+        return "Отчет недоступен: объект не отслеживается"
+    end
+    
+    local trackData = ATC_MonitoringManager.trackedObjects[objectID]
+    local evaluation = ATC_MonitoringManager.evaluateProcedurePerformance(object)
+    
     if not evaluation then
-        return
+        return "Отчет недоступен: недостаточно данных"
     end
     
     local callsign = object:GetCallsign() or "Aircraft"
-    local message = callsign .. ", оценка выполнения процедуры: " .. evaluation.category .. " (" .. evaluation.score .. " из 100 баллов)."
+    local procedureType = trackData.procedureType
+    local procedureName = trackData.procedure.name
     
-    -- Добавление деталей, если были отклонения
-    if evaluation.stats.totalDeviations > 0 then
-        message = message .. " Зафиксировано отклонений: " .. evaluation.stats.totalDeviations .. "."
-        
-        if evaluation.stats.lateralDeviations > 0 then
-            message = message .. " Боковых: " .. evaluation.stats.lateralDeviations .. "."
-        end
-        
-        if evaluation.stats.verticalDeviations > 0 then
-            message = message .. " Вертикальных: " .. evaluation.stats.verticalDeviations .. "."
-        end
-        
-        if evaluation.stats.speedDeviations > 0 then
-            message = message .. " По скорости: " .. evaluation.stats.speedDeviations .. "."
-        end
-    else
-        message = message .. " Отклонений не зафиксировано."
+    local report = "Отчет о выполнении процедуры для " .. callsign .. ":\n"
+    report = report .. "Процедура: " .. procedureType .. " " .. procedureName .. "\n"
+    report = report .. "Оценка: " .. evaluation.grade .. " (" .. evaluation.score .. " баллов)\n"
+    report = report .. "Всего отклонений: " .. evaluation.stats.totalDeviations .. "\n"
+    report = report .. "- Боковые отклонения: " .. evaluation.stats.lateralDeviations .. "\n"
+    report = report .. "- Вертикальные отклонения: " .. evaluation.stats.verticalDeviations .. "\n"
+    report = report .. "- Отклонения по скорости: " .. evaluation.stats.speedDeviations .. "\n"
+    
+    report = report .. "Отклонения по точкам:\n"
+    for waypoint, count in pairs(evaluation.stats.deviationsByWaypoint) do
+        report = report .. "- " .. waypoint .. ": " .. count .. "\n"
     end
     
-    -- Отправка сообщения через службу ATC
-    atcService:sendMessage(object, message)
-    
-    DTC_MonitoringManager.log("Отправлена оценка выполнения процедуры для " .. callsign .. ": " .. message)
-    
-    -- Прекращение отслеживания объекта
-    DTC_MonitoringManager.stopTrackingObject(object)
-    
-    return evaluation
+    return report
 end
 
-return DTC_MonitoringManager
+return ATC_MonitoringManager

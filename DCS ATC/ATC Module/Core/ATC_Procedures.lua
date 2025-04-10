@@ -1,33 +1,33 @@
 --[[
-DTC_Procedures.lua
+ATC_Procedures.lua
 Модуль для работы с процедурами полета для универсального ATC модуля
-Автор: AVIskrich
+Автор: Andrey Iskrich
 Дата: Апрель 2025
 --]]
 
-local DTC_Procedures = {}
+local ATC_Procedures = {}
 
 -- Логирование
-DTC_Procedures.log = function(message)
-    if DTC_Config and DTC_Config.DEBUG then
-        env.info("[DTC_Procedures] " .. message)
+ATC_Procedures.log = function(message)
+    if ATC_Config and ATC_Config.DEBUG then
+        env.info("[ATC_Procedures] " .. message)
     end
 end
 
 -- Инициализация модуля
-DTC_Procedures.init = function()
-    DTC_Procedures.log("Инициализация модуля процедур")
-    return DTC_Procedures
+ATC_Procedures.init = function()
+    ATC_Procedures.log("Инициализация модуля процедур")
+    return ATC_Procedures
 end
 
 -- Получение SID процедуры для ВПП
-DTC_Procedures.getSIDForRunway = function(runway)
-    if not DTC_Navigraph.isDataLoaded then
-        DTC_Procedures.log("Данные Navigraph не загружены")
+ATC_Procedures.getSIDForRunway = function(runway)
+    if not ATC_Navigraph.isDataLoaded then
+        ATC_Procedures.log("Данные Navigraph не загружены")
         return nil
     end
     
-    local sids = DTC_Navigraph.getAllSIDs()
+    local sids = ATC_Navigraph.getAllSIDs()
     local runwaySIDs = {}
     
     for name, sid in pairs(sids) do
@@ -43,13 +43,13 @@ DTC_Procedures.getSIDForRunway = function(runway)
 end
 
 -- Получение STAR процедуры для ВПП
-DTC_Procedures.getSTARForRunway = function(runway)
-    if not DTC_Navigraph.isDataLoaded then
-        DTC_Procedures.log("Данные Navigraph не загружены")
+ATC_Procedures.getSTARForRunway = function(runway)
+    if not ATC_Navigraph.isDataLoaded then
+        ATC_Procedures.log("Данные Navigraph не загружены")
         return nil
     end
     
-    local stars = DTC_Navigraph.getAllSTARs()
+    local stars = ATC_Navigraph.getAllSTARs()
     local runwaySTARs = {}
     
     for name, star in pairs(stars) do
@@ -65,13 +65,13 @@ DTC_Procedures.getSTARForRunway = function(runway)
 end
 
 -- Получение процедуры захода на посадку для ВПП
-DTC_Procedures.getApproachForRunway = function(runway, approachType)
-    if not DTC_Navigraph.isDataLoaded then
-        DTC_Procedures.log("Данные Navigraph не загружены")
+ATC_Procedures.getApproachForRunway = function(runway, approachType)
+    if not ATC_Navigraph.isDataLoaded then
+        ATC_Procedures.log("Данные Navigraph не загружены")
         return nil
     end
     
-    local approaches = DTC_Navigraph.getAllAPPROACHes()
+    local approaches = ATC_Navigraph.getAllAPPROACHes()
     local runwayApproaches = {}
     
     for name, approach in pairs(approaches) do
@@ -87,8 +87,8 @@ DTC_Procedures.getApproachForRunway = function(runway, approachType)
 end
 
 -- Получение рекомендуемой SID процедуры для ВПП и направления
-DTC_Procedures.getRecommendedSID = function(runway, direction)
-    local sids = DTC_Procedures.getSIDForRunway(runway)
+ATC_Procedures.getRecommendedSID = function(runway, direction)
+    local sids = ATC_Procedures.getSIDForRunway(runway)
     if not sids or #sids == 0 then
         return nil
     end
@@ -105,11 +105,11 @@ DTC_Procedures.getRecommendedSID = function(runway, direction)
     for _, sid in ipairs(sids) do
         if #sid.data.waypoints > 0 then
             local lastWaypoint = sid.data.waypoints[#sid.data.waypoints]
-            local waypointData = DTC_Navigraph.getWaypoint(lastWaypoint.name)
+            local waypointData = ATC_Navigraph.getWaypoint(lastWaypoint.name)
             
             if waypointData then
                 -- Получение координат первой и последней точки процедуры
-                local firstWaypointData = DTC_Navigraph.getWaypoint(sid.data.waypoints[1].name)
+                local firstWaypointData = ATC_Navigraph.getWaypoint(sid.data.waypoints[1].name)
                 
                 if firstWaypointData then
                     local firstCoord = COORDINATE:NewFromLLDD(firstWaypointData.lat, firstWaypointData.lon)
@@ -134,8 +134,8 @@ DTC_Procedures.getRecommendedSID = function(runway, direction)
 end
 
 -- Получение рекомендуемой STAR процедуры для ВПП и направления
-DTC_Procedures.getRecommendedSTAR = function(runway, direction)
-    local stars = DTC_Procedures.getSTARForRunway(runway)
+ATC_Procedures.getRecommendedSTAR = function(runway, direction)
+    local stars = ATC_Procedures.getSTARForRunway(runway)
     if not stars or #stars == 0 then
         return nil
     end
@@ -152,11 +152,11 @@ DTC_Procedures.getRecommendedSTAR = function(runway, direction)
     for _, star in ipairs(stars) do
         if #star.data.waypoints > 0 then
             local firstWaypoint = star.data.waypoints[1]
-            local waypointData = DTC_Navigraph.getWaypoint(firstWaypoint.name)
+            local waypointData = ATC_Navigraph.getWaypoint(firstWaypoint.name)
             
             if waypointData then
                 -- Получение координат первой и последней точки процедуры
-                local lastWaypointData = DTC_Navigraph.getWaypoint(star.data.waypoints[#star.data.waypoints].name)
+                local lastWaypointData = ATC_Navigraph.getWaypoint(star.data.waypoints[#star.data.waypoints].name)
                 
                 if lastWaypointData then
                     local firstCoord = COORDINATE:NewFromLLDD(waypointData.lat, waypointData.lon)
@@ -181,8 +181,8 @@ DTC_Procedures.getRecommendedSTAR = function(runway, direction)
 end
 
 -- Получение рекомендуемой процедуры захода на посадку для ВПП
-DTC_Procedures.getRecommendedApproach = function(runway, approachType)
-    local approaches = DTC_Procedures.getApproachForRunway(runway, approachType)
+ATC_Procedures.getRecommendedApproach = function(runway, approachType)
+    local approaches = ATC_Procedures.getApproachForRunway(runway, approachType)
     if not approaches or #approaches == 0 then
         return nil
     end
@@ -212,7 +212,7 @@ DTC_Procedures.getRecommendedApproach = function(runway, approachType)
 end
 
 -- Создание маршрута MOOSE из процедуры
-DTC_Procedures.createRouteFromProcedure = function(procedure, procedureType)
+ATC_Procedures.createRouteFromProcedure = function(procedure, procedureType)
     if not procedure or not procedureType then
         return nil
     end
@@ -220,7 +220,7 @@ DTC_Procedures.createRouteFromProcedure = function(procedure, procedureType)
     local waypoints = {}
     
     for _, wp in ipairs(procedure.waypoints) do
-        local waypointData = DTC_Navigraph.getWaypoint(wp.name)
+        local waypointData = ATC_Navigraph.getWaypoint(wp.name)
         
         if waypointData then
             local coord = COORDINATE:NewFromLLDD(waypointData.lat, waypointData.lon)
@@ -237,7 +237,7 @@ DTC_Procedures.createRouteFromProcedure = function(procedure, procedureType)
             
             table.insert(waypoints, waypointProps)
         else
-            DTC_Procedures.log("Предупреждение: Путевая точка не найдена: " .. wp.name)
+            ATC_Procedures.log("Предупреждение: Путевая точка не найдена: " .. wp.name)
         end
     end
     
@@ -245,7 +245,7 @@ DTC_Procedures.createRouteFromProcedure = function(procedure, procedureType)
 end
 
 -- Проверка, находится ли объект на маршруте процедуры
-DTC_Procedures.isObjectOnProcedureRoute = function(object, procedure, procedureType, tolerance)
+ATC_Procedures.isObjectOnProcedureRoute = function(object, procedure, procedureType, tolerance)
     if not object or not procedure or not procedureType then
         return false
     end
@@ -256,11 +256,11 @@ DTC_Procedures.isObjectOnProcedureRoute = function(object, procedure, procedureT
     
     -- Проверка каждой точки процедуры
     for _, wp in ipairs(procedure.waypoints) do
-        local waypointData = DTC_Navigraph.getWaypoint(wp.name)
+        local waypointData = ATC_Navigraph.getWaypoint(wp.name)
         
         if waypointData then
             local waypointCoord = COORDINATE:NewFromLLDD(waypointData.lat, waypointData.lon)
-            local distance = DTC_Utils.getDistance(objectCoord, waypointCoord)
+            local distance = ATC_Utils.getDistance(objectCoord, waypointCoord)
             
             if distance <= tolerance then
                 return true, wp.name
@@ -272,7 +272,7 @@ DTC_Procedures.isObjectOnProcedureRoute = function(object, procedure, procedureT
 end
 
 -- Получение ближайшей точки процедуры к объекту
-DTC_Procedures.getNearestProcedureWaypoint = function(object, procedure, procedureType)
+ATC_Procedures.getNearestProcedureWaypoint = function(object, procedure, procedureType)
     if not object or not procedure or not procedureType then
         return nil
     end
@@ -283,11 +283,11 @@ DTC_Procedures.getNearestProcedureWaypoint = function(object, procedure, procedu
     
     -- Проверка каждой точки процедуры
     for _, wp in ipairs(procedure.waypoints) do
-        local waypointData = DTC_Navigraph.getWaypoint(wp.name)
+        local waypointData = ATC_Navigraph.getWaypoint(wp.name)
         
         if waypointData then
             local waypointCoord = COORDINATE:NewFromLLDD(waypointData.lat, waypointData.lon)
-            local distance = DTC_Utils.getDistance(objectCoord, waypointCoord)
+            local distance = ATC_Utils.getDistance(objectCoord, waypointCoord)
             
             if distance < minDistance then
                 minDistance = distance
@@ -305,7 +305,7 @@ DTC_Procedures.getNearestProcedureWaypoint = function(object, procedure, procedu
 end
 
 -- Получение следующей точки процедуры после указанной
-DTC_Procedures.getNextProcedureWaypoint = function(procedure, procedureType, currentWaypointName)
+ATC_Procedures.getNextProcedureWaypoint = function(procedure, procedureType, currentWaypointName)
     if not procedure or not procedureType or not currentWaypointName then
         return nil
     end
@@ -314,7 +314,7 @@ DTC_Procedures.getNextProcedureWaypoint = function(procedure, procedureType, cur
     
     for i, wp in ipairs(procedure.waypoints) do
         if found then
-            local waypointData = DTC_Navigraph.getWaypoint(wp.name)
+            local waypointData = ATC_Navigraph.getWaypoint(wp.name)
             
             if waypointData then
                 return {
@@ -335,7 +335,7 @@ DTC_Procedures.getNextProcedureWaypoint = function(procedure, procedureType, cur
 end
 
 -- Получение предыдущей точки процедуры перед указанной
-DTC_Procedures.getPreviousProcedureWaypoint = function(procedure, procedureType, currentWaypointName)
+ATC_Procedures.getPreviousProcedureWaypoint = function(procedure, procedureType, currentWaypointName)
     if not procedure or not procedureType or not currentWaypointName then
         return nil
     end
@@ -347,7 +347,7 @@ DTC_Procedures.getPreviousProcedureWaypoint = function(procedure, procedureType,
             return prevWaypoint
         end
         
-        local waypointData = DTC_Navigraph.getWaypoint(wp.name)
+        local waypointData = ATC_Navigraph.getWaypoint(wp.name)
         
         if waypointData then
             prevWaypoint = {
@@ -363,7 +363,7 @@ DTC_Procedures.getPreviousProcedureWaypoint = function(procedure, procedureType,
 end
 
 -- Получение индекса точки в процедуре
-DTC_Procedures.getWaypointIndex = function(procedure, procedureType, waypointName)
+ATC_Procedures.getWaypointIndex = function(procedure, procedureType, waypointName)
     if not procedure or not procedureType or not waypointName then
         return nil
     end
@@ -378,7 +378,7 @@ DTC_Procedures.getWaypointIndex = function(procedure, procedureType, waypointNam
 end
 
 -- Получение оставшегося расстояния по процедуре
-DTC_Procedures.getRemainingDistance = function(object, procedure, procedureType, currentWaypointName)
+ATC_Procedures.getRemainingDistance = function(object, procedure, procedureType, currentWaypointName)
     if not object or not procedure or not procedureType then
         return nil
     end
@@ -387,7 +387,7 @@ DTC_Procedures.getRemainingDistance = function(object, procedure, procedureType,
     local currentIndex = 1
     
     if currentWaypointName then
-        currentIndex = DTC_Procedures.getWaypointIndex(procedure, procedureType, currentWaypointName) or 1
+        currentIndex = ATC_Procedures.getWaypointIndex(procedure, procedureType, currentWaypointName) or 1
     end
     
     local totalDistance = 0
@@ -395,11 +395,11 @@ DTC_Procedures.getRemainingDistance = function(object, procedure, procedureType,
     -- Расстояние до текущей точки
     local currentWaypoint = procedure.waypoints[currentIndex]
     if currentWaypoint then
-        local waypointData = DTC_Navigraph.getWaypoint(currentWaypoint.name)
+        local waypointData = ATC_Navigraph.getWaypoint(currentWaypoint.name)
         
         if waypointData then
             local waypointCoord = COORDINATE:NewFromLLDD(waypointData.lat, waypointData.lon)
-            totalDistance = DTC_Utils.getDistance(objectCoord, waypointCoord)
+            totalDistance = ATC_Utils.getDistance(objectCoord, waypointCoord)
         end
     end
     
@@ -408,14 +408,14 @@ DTC_Procedures.getRemainingDistance = function(object, procedure, procedureType,
         local wp1 = procedure.waypoints[i]
         local wp2 = procedure.waypoints[i + 1]
         
-        local wp1Data = DTC_Navigraph.getWaypoint(wp1.name)
-        local wp2Data = DTC_Navigraph.getWaypoint(wp2.name)
+        local wp1Data = ATC_Navigraph.getWaypoint(wp1.name)
+        local wp2Data = ATC_Navigraph.getWaypoint(wp2.name)
         
         if wp1Data and wp2Data then
             local wp1Coord = COORDINATE:NewFromLLDD(wp1Data.lat, wp1Data.lon)
             local wp2Coord = COORDINATE:NewFromLLDD(wp2Data.lat, wp2Data.lon)
             
-            totalDistance = totalDistance + DTC_Utils.getDistance(wp1Coord, wp2Coord)
+            totalDistance = totalDistance + ATC_Utils.getDistance(wp1Coord, wp2Coord)
         end
     end
     
@@ -423,17 +423,17 @@ DTC_Procedures.getRemainingDistance = function(object, procedure, procedureType,
 end
 
 -- Получение оставшегося времени по процедуре
-DTC_Procedures.getRemainingTime = function(object, procedure, procedureType, currentWaypointName)
+ATC_Procedures.getRemainingTime = function(object, procedure, procedureType, currentWaypointName)
     if not object or not procedure or not procedureType then
         return nil
     end
     
-    local distance = DTC_Procedures.getRemainingDistance(object, procedure, procedureType, currentWaypointName)
+    local distance = ATC_Procedures.getRemainingDistance(object, procedure, procedureType, currentWaypointName)
     if not distance then
         return nil
     end
     
-    local speed = DTC_Utils.getSpeed(object)
+    local speed = ATC_Utils.getSpeed(object)
     if speed < 10 then
         speed = 250  -- Предполагаемая скорость, если объект стоит на месте
     end
@@ -442,7 +442,7 @@ DTC_Procedures.getRemainingTime = function(object, procedure, procedureType, cur
 end
 
 -- Получение ограничений по высоте для точки процедуры
-DTC_Procedures.getAltitudeRestrictions = function(procedure, procedureType, waypointName)
+ATC_Procedures.getAltitudeRestrictions = function(procedure, procedureType, waypointName)
     if not procedure or not procedureType or not waypointName then
         return nil
     end
@@ -467,7 +467,7 @@ DTC_Procedures.getAltitudeRestrictions = function(procedure, procedureType, wayp
 end
 
 -- Получение ограничений по скорости для точки процедуры
-DTC_Procedures.getSpeedRestrictions = function(procedure, procedureType, waypointName)
+ATC_Procedures.getSpeedRestrictions = function(procedure, procedureType, waypointName)
     if not procedure or not procedureType or not waypointName then
         return nil
     end
@@ -486,17 +486,17 @@ DTC_Procedures.getSpeedRestrictions = function(procedure, procedureType, waypoin
 end
 
 -- Проверка соблюдения ограничений по высоте
-DTC_Procedures.checkAltitudeRestrictions = function(object, procedure, procedureType, waypointName)
+ATC_Procedures.checkAltitudeRestrictions = function(object, procedure, procedureType, waypointName)
     if not object or not procedure or not procedureType or not waypointName then
         return true
     end
     
-    local restrictions = DTC_Procedures.getAltitudeRestrictions(procedure, procedureType, waypointName)
+    local restrictions = ATC_Procedures.getAltitudeRestrictions(procedure, procedureType, waypointName)
     if not restrictions then
         return true
     end
     
-    local altitude = DTC_Utils.getAltitude(object)
+    local altitude = ATC_Utils.getAltitude(object)
     
     if restrictions.min and altitude < restrictions.min then
         return false, "below", restrictions.min
@@ -510,167 +510,27 @@ DTC_Procedures.checkAltitudeRestrictions = function(object, procedure, procedure
 end
 
 -- Проверка соблюдения ограничений по скорости
-DTC_Procedures.checkSpeedRestrictions = function(object, procedure, procedureType, waypointName)
+ATC_Procedures.checkSpeedRestrictions = function(object, procedure, procedureType, waypointName)
     if not object or not procedure or not procedureType or not waypointName then
         return true
     end
     
-    local restriction = DTC_Procedures.getSpeedRestrictions(procedure, procedureType, waypointName)
+    local restriction = ATC_Procedures.getSpeedRestrictions(procedure, procedureType, waypointName)
     if not restriction then
         return true
     end
     
-    local speed = DTC_Utils.getSpeed(object)
+    local speed = ATC_Utils.getSpeed(object)
     
     if speed > restriction + 10 then  -- Допуск 10 узлов
-        return false, speed, restriction
+        return false, "too fast", restriction
     end
     
     return true
 end
 
--- Получение рекомендаций по высоте для текущей позиции на процедуре
-DTC_Procedures.getAltitudeAdvice = function(object, procedure, procedureType)
-    if not object or not procedure or not procedureType then
-        return nil
-    end
-    
-    local objectCoord = object:GetCoordinate()
-    local nearestWaypoint = DTC_Procedures.getNearestProcedureWaypoint(object, procedure, procedureType)
-    
-    if not nearestWaypoint then
-        return nil
-    end
-    
-    local nextWaypoint = DTC_Procedures.getNextProcedureWaypoint(procedure, procedureType, nearestWaypoint.name)
-    
-    -- Если это последняя точка процедуры
-    if not nextWaypoint then
-        local restrictions = DTC_Procedures.getAltitudeRestrictions(procedure, procedureType, nearestWaypoint.name)
-        
-        if restrictions and restrictions.min then
-            return restrictions.min
-        end
-        
-        return nil
-    end
-    
-    -- Получение ограничений для текущей и следующей точки
-    local currentRestrictions = DTC_Procedures.getAltitudeRestrictions(procedure, procedureType, nearestWaypoint.name)
-    local nextRestrictions = DTC_Procedures.getAltitudeRestrictions(procedure, procedureType, nextWaypoint.name)
-    
-    -- Если нет ограничений
-    if not currentRestrictions and not nextRestrictions then
-        return nil
-    end
-    
-    -- Получение координат точек
-    local currentCoord = COORDINATE:NewFromLLDD(nearestWaypoint.waypointData.lat, nearestWaypoint.waypointData.lon)
-    local nextCoord = COORDINATE:NewFromLLDD(nextWaypoint.waypointData.lat, nextWaypoint.waypointData.lon)
-    
-    -- Расчет расстояний
-    local totalDistance = DTC_Utils.getDistance(currentCoord, nextCoord)
-    local distanceToCurrent = DTC_Utils.getDistance(objectCoord, currentCoord)
-    local distanceToNext = DTC_Utils.getDistance(objectCoord, nextCoord)
-    
-    -- Определение прогресса между точками (0.0 - 1.0)
-    local progress = 0
-    
-    if totalDistance > 0 then
-        progress = distanceToCurrent / totalDistance
-    end
-    
-    -- Определение рекомендуемой высоты
-    local recommendedAltitude = nil
-    
-    -- Если есть ограничения для обеих точек
-    if currentRestrictions and nextRestrictions then
-        local currentAlt = currentRestrictions.min or currentRestrictions.max or 0
-        local nextAlt = nextRestrictions.min or nextRestrictions.max or 0
-        
-        -- Линейная интерполяция
-        recommendedAltitude = currentAlt + (nextAlt - currentAlt) * progress
-    
-    -- Если есть ограничения только для текущей точки
-    elseif currentRestrictions then
-        recommendedAltitude = currentRestrictions.min or currentRestrictions.max
-    
-    -- Если есть ограничения только для следующей точки
-    elseif nextRestrictions then
-        recommendedAltitude = nextRestrictions.min or nextRestrictions.max
-    end
-    
-    return recommendedAltitude
-end
-
--- Получение рекомендаций по скорости для текущей позиции на процедуре
-DTC_Procedures.getSpeedAdvice = function(object, procedure, procedureType)
-    if not object or not procedure or not procedureType then
-        return nil
-    end
-    
-    local objectCoord = object:GetCoordinate()
-    local nearestWaypoint = DTC_Procedures.getNearestProcedureWaypoint(object, procedure, procedureType)
-    
-    if not nearestWaypoint then
-        return nil
-    end
-    
-    local nextWaypoint = DTC_Procedures.getNextProcedureWaypoint(procedure, procedureType, nearestWaypoint.name)
-    
-    -- Если это последняя точка процедуры
-    if not nextWaypoint then
-        local restriction = DTC_Procedures.getSpeedRestrictions(procedure, procedureType, nearestWaypoint.name)
-        return restriction
-    end
-    
-    -- Получение ограничений для текущей и следующей точки
-    local currentRestriction = DTC_Procedures.getSpeedRestrictions(procedure, procedureType, nearestWaypoint.name)
-    local nextRestriction = DTC_Procedures.getSpeedRestrictions(procedure, procedureType, nextWaypoint.name)
-    
-    -- Если нет ограничений
-    if not currentRestriction and not nextRestriction then
-        return nil
-    end
-    
-    -- Получение координат точек
-    local currentCoord = COORDINATE:NewFromLLDD(nearestWaypoint.waypointData.lat, nearestWaypoint.waypointData.lon)
-    local nextCoord = COORDINATE:NewFromLLDD(nextWaypoint.waypointData.lat, nextWaypoint.waypointData.lon)
-    
-    -- Расчет расстояний
-    local totalDistance = DTC_Utils.getDistance(currentCoord, nextCoord)
-    local distanceToCurrent = DTC_Utils.getDistance(objectCoord, currentCoord)
-    local distanceToNext = DTC_Utils.getDistance(objectCoord, nextCoord)
-    
-    -- Определение прогресса между точками (0.0 - 1.0)
-    local progress = 0
-    
-    if totalDistance > 0 then
-        progress = distanceToCurrent / totalDistance
-    end
-    
-    -- Определение рекомендуемой скорости
-    local recommendedSpeed = nil
-    
-    -- Если есть ограничения для обеих точек
-    if currentRestriction and nextRestriction then
-        -- Линейная интерполяция
-        recommendedSpeed = currentRestriction + (nextRestriction - currentRestriction) * progress
-    
-    -- Если есть ограничения только для текущей точки
-    elseif currentRestriction then
-        recommendedSpeed = currentRestriction
-    
-    -- Если есть ограничения только для следующей точки
-    elseif nextRestriction then
-        recommendedSpeed = nextRestriction
-    end
-    
-    return recommendedSpeed
-end
-
 -- Получение информации о процедуре для передачи пилоту
-DTC_Procedures.getProcedureInfo = function(procedure, procedureType)
+ATC_Procedures.getProcedureInfo = function(procedure, procedureType)
     if not procedure or not procedureType then
         return "Информация о процедуре недоступна"
     end
@@ -678,38 +538,89 @@ DTC_Procedures.getProcedureInfo = function(procedure, procedureType)
     local result = ""
     
     if procedureType == "SID" then
-        result = "Процедура вылета " .. procedure.name .. " с ВПП " .. procedure.runway .. ": "
+        result = "SID " .. procedure.name .. " для ВПП " .. procedure.runway .. ". "
     elseif procedureType == "STAR" then
-        result = "Процедура прибытия " .. procedure.name .. " для ВПП " .. procedure.runway .. ": "
+        result = "STAR " .. procedure.name .. " для ВПП " .. procedure.runway .. ". "
     elseif procedureType == "APPROACH" then
-        result = "Процедура захода " .. procedure.name .. " (" .. procedure.type .. ") на ВПП " .. procedure.runway .. ": "
+        result = "Заход " .. procedure.type .. " " .. procedure.name .. " для ВПП " .. procedure.runway .. ". "
     end
     
-    -- Добавление путевых точек
+    result = result .. "Путевые точки: "
+    
     for i, wp in ipairs(procedure.waypoints) do
         result = result .. wp.name
         
-        -- Добавление ограничений по высоте
         if wp.altitude_min and wp.altitude_max then
-            result = result .. " (от " .. wp.altitude_min .. " до " .. wp.altitude_max .. " футов)"
+            result = result .. " (между " .. wp.altitude_min .. " и " .. wp.altitude_max .. " футов)"
         elseif wp.altitude_min then
-            result = result .. " (минимум " .. wp.altitude_min .. " футов)"
+            result = result .. " (выше " .. wp.altitude_min .. " футов)"
         elseif wp.altitude_max then
-            result = result .. " (максимум " .. wp.altitude_max .. " футов)"
+            result = result .. " (ниже " .. wp.altitude_max .. " футов)"
         end
         
-        -- Добавление ограничений по скорости
         if wp.speed then
-            result = result .. " [" .. wp.speed .. " узлов]"
+            result = result .. " (скорость " .. wp.speed .. " узлов)"
         end
         
-        -- Разделитель между точками
         if i < #procedure.waypoints then
-            result = result .. " - "
+            result = result .. ", "
         end
     end
     
     return result
 end
 
-return DTC_Procedures
+-- Получение информации о следующей точке процедуры для передачи пилоту
+ATC_Procedures.getNextWaypointInfo = function(object, procedure, procedureType, currentWaypointName)
+    if not object or not procedure or not procedureType then
+        return "Информация о следующей точке недоступна"
+    end
+    
+    local nextWaypoint = nil
+    
+    if currentWaypointName then
+        nextWaypoint = ATC_Procedures.getNextProcedureWaypoint(procedure, procedureType, currentWaypointName)
+    else
+        local nearestWaypoint = ATC_Procedures.getNearestProcedureWaypoint(object, procedure, procedureType)
+        if nearestWaypoint then
+            nextWaypoint = ATC_Procedures.getNextProcedureWaypoint(procedure, procedureType, nearestWaypoint.name)
+        end
+    end
+    
+    if not nextWaypoint then
+        return "Нет следующей точки в процедуре"
+    end
+    
+    local result = "Следующая точка: " .. nextWaypoint.name
+    
+    local waypointData = nextWaypoint.waypointData
+    if waypointData then
+        local objectCoord = object:GetCoordinate()
+        local waypointCoord = COORDINATE:NewFromLLDD(waypointData.lat, waypointData.lon)
+        
+        local distance = ATC_Utils.getDistance(objectCoord, waypointCoord)
+        local bearing = ATC_Utils.getHeading(objectCoord, waypointCoord)
+        
+        result = result .. ", курс " .. ATC_Utils.formatHeading(bearing) .. ", расстояние " .. math.floor(distance) .. " морских миль"
+    end
+    
+    local restrictions = ATC_Procedures.getAltitudeRestrictions(procedure, procedureType, nextWaypoint.name)
+    if restrictions then
+        if restrictions.min and restrictions.max then
+            result = result .. ", высота между " .. restrictions.min .. " и " .. restrictions.max .. " футов"
+        elseif restrictions.min then
+            result = result .. ", высота выше " .. restrictions.min .. " футов"
+        elseif restrictions.max then
+            result = result .. ", высота ниже " .. restrictions.max .. " футов"
+        end
+    end
+    
+    local speedRestriction = ATC_Procedures.getSpeedRestrictions(procedure, procedureType, nextWaypoint.name)
+    if speedRestriction then
+        result = result .. ", скорость " .. speedRestriction .. " узлов"
+    end
+    
+    return result
+end
+
+return ATC_Procedures

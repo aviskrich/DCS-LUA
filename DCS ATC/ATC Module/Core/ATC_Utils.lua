@@ -1,21 +1,21 @@
 --[[
-DTC_Utils.lua
+ATC_Utils.lua
 Вспомогательные функции для универсального ATC модуля
-Автор: AVIskrich
+Автор: Andrey Iskrich
 Дата: Апрель 2025
 --]]
 
-local DTC_Utils = {}
+local ATC_Utils = {}
 
 -- Логирование
-DTC_Utils.log = function(message)
-    if DTC_Config and DTC_Config.DEBUG then
-        env.info("[DTC_Utils] " .. message)
+ATC_Utils.log = function(message)
+    if ATC_Config and ATC_Config.DEBUG then
+        env.info("[ATC_Utils] " .. message)
     end
 end
 
 -- Форматирование времени
-DTC_Utils.formatTime = function(seconds)
+ATC_Utils.formatTime = function(seconds)
     local hours = math.floor(seconds / 3600)
     local minutes = math.floor((seconds % 3600) / 60)
     local secs = math.floor(seconds % 60)
@@ -24,7 +24,7 @@ DTC_Utils.formatTime = function(seconds)
 end
 
 -- Форматирование высоты
-DTC_Utils.formatAltitude = function(altitude, useMetric)
+ATC_Utils.formatAltitude = function(altitude, useMetric)
     if useMetric then
         return string.format("%d метров", math.floor(altitude))
     else
@@ -33,7 +33,7 @@ DTC_Utils.formatAltitude = function(altitude, useMetric)
 end
 
 -- Форматирование скорости
-DTC_Utils.formatSpeed = function(speed, useMetric)
+ATC_Utils.formatSpeed = function(speed, useMetric)
     if useMetric then
         return string.format("%d км/ч", math.floor(speed))
     else
@@ -42,17 +42,17 @@ DTC_Utils.formatSpeed = function(speed, useMetric)
 end
 
 -- Форматирование курса
-DTC_Utils.formatHeading = function(heading)
+ATC_Utils.formatHeading = function(heading)
     return string.format("%03d", math.floor(heading))
 end
 
 -- Форматирование частоты
-DTC_Utils.formatFrequency = function(frequency)
+ATC_Utils.formatFrequency = function(frequency)
     return string.format("%.3f", frequency)
 end
 
 -- Получение позывного для службы ATC
-DTC_Utils.getCallsign = function(icao, service)
+ATC_Utils.getCallsign = function(icao, service)
     if not icao or not service then
         return "ATC"
     end
@@ -61,7 +61,7 @@ DTC_Utils.getCallsign = function(icao, service)
 end
 
 -- Получение расстояния между двумя координатами в морских милях
-DTC_Utils.getDistance = function(coord1, coord2)
+ATC_Utils.getDistance = function(coord1, coord2)
     if not coord1 or not coord2 then
         return 0
     end
@@ -70,7 +70,7 @@ DTC_Utils.getDistance = function(coord1, coord2)
 end
 
 -- Получение курса от одной координаты к другой
-DTC_Utils.getHeading = function(coord1, coord2)
+ATC_Utils.getHeading = function(coord1, coord2)
     if not coord1 or not coord2 then
         return 0
     end
@@ -79,21 +79,20 @@ DTC_Utils.getHeading = function(coord1, coord2)
 end
 
 -- Получение высоты объекта
-DTC_Utils.getAltitude = function(object)
+ATC_Utils.getAltitude = function(object)
     if not object then
         return 0
     end
     
-    local point = object:GetPoint()
-    if point then
-        return point.y
+    if type(object) == "table" then
+        return object:GetAltitude()
     end
     
     return 0
 end
 
 -- Получение скорости объекта в узлах
-DTC_Utils.getSpeed = function(object)
+ATC_Utils.getSpeed = function(object)
     if not object then
         return 0
     end
@@ -108,7 +107,7 @@ DTC_Utils.getSpeed = function(object)
 end
 
 -- Получение курса объекта
-DTC_Utils.getObjectHeading = function(object)
+ATC_Utils.getObjectHeading = function(object)
     if not object then
         return 0
     end
@@ -122,7 +121,7 @@ DTC_Utils.getObjectHeading = function(object)
 end
 
 -- Получение типа самолета
-DTC_Utils.getAircraftType = function(object)
+ATC_Utils.getAircraftType = function(object)
     if not object then
         return "Unknown"
     end
@@ -136,7 +135,7 @@ DTC_Utils.getAircraftType = function(object)
 end
 
 -- Получение имени игрока
-DTC_Utils.getPlayerName = function(object)
+ATC_Utils.getPlayerName = function(object)
     if not object then
         return nil
     end
@@ -150,12 +149,12 @@ DTC_Utils.getPlayerName = function(object)
 end
 
 -- Проверка, является ли объект игроком
-DTC_Utils.isPlayer = function(object)
-    return DTC_Utils.getPlayerName(object) ~= nil
+ATC_Utils.isPlayer = function(object)
+    return ATC_Utils.getPlayerName(object) ~= nil
 end
 
 -- Получение ближайшей ВПП к координатам
-DTC_Utils.getNearestRunway = function(coord, runways)
+ATC_Utils.getNearestRunway = function(coord, runways)
     if not coord or not runways then
         return nil
     end
@@ -165,7 +164,7 @@ DTC_Utils.getNearestRunway = function(coord, runways)
     
     for name, runway in pairs(runways) do
         local thresholdCoord = COORDINATE:NewFromLLDD(runway.threshold.lat, runway.threshold.lon)
-        local distance = DTC_Utils.getDistance(coord, thresholdCoord)
+        local distance = ATC_Utils.getDistance(coord, thresholdCoord)
         
         if distance < minDistance then
             minDistance = distance
@@ -181,7 +180,7 @@ DTC_Utils.getNearestRunway = function(coord, runways)
 end
 
 -- Получение ближайшей путевой точки к координатам
-DTC_Utils.getNearestWaypoint = function(coord, waypoints, maxDistance)
+ATC_Utils.getNearestWaypoint = function(coord, waypoints, maxDistance)
     if not coord or not waypoints then
         return nil
     end
@@ -193,7 +192,7 @@ DTC_Utils.getNearestWaypoint = function(coord, waypoints, maxDistance)
     
     for name, waypoint in pairs(waypoints) do
         local waypointCoord = COORDINATE:NewFromLLDD(waypoint.lat, waypoint.lon)
-        local distance = DTC_Utils.getDistance(coord, waypointCoord)
+        local distance = ATC_Utils.getDistance(coord, waypointCoord)
         
         if distance < minDistance and distance <= maxDistance then
             minDistance = distance
@@ -209,7 +208,7 @@ DTC_Utils.getNearestWaypoint = function(coord, waypoints, maxDistance)
 end
 
 -- Получение ближайшей процедуры к координатам
-DTC_Utils.getNearestProcedure = function(coord, procedures, procedureType, maxDistance)
+ATC_Utils.getNearestProcedure = function(coord, procedures, procedureType, maxDistance)
     if not coord or not procedures then
         return nil
     end
@@ -222,11 +221,11 @@ DTC_Utils.getNearestProcedure = function(coord, procedures, procedureType, maxDi
     for name, procedure in pairs(procedures) do
         if #procedure.waypoints > 0 then
             local firstWaypoint = procedure.waypoints[1]
-            local waypointData = DTC_Navigraph.getWaypoint(firstWaypoint.name)
+            local waypointData = ATC_Navigraph.getWaypoint(firstWaypoint.name)
             
             if waypointData then
                 local waypointCoord = COORDINATE:NewFromLLDD(waypointData.lat, waypointData.lon)
-                local distance = DTC_Utils.getDistance(coord, waypointCoord)
+                local distance = ATC_Utils.getDistance(coord, waypointCoord)
                 
                 if distance < minDistance and distance <= maxDistance then
                     minDistance = distance
@@ -244,13 +243,13 @@ DTC_Utils.getNearestProcedure = function(coord, procedures, procedureType, maxDi
 end
 
 -- Получение текущей фазы полета объекта
-DTC_Utils.getFlightPhase = function(object)
+ATC_Utils.getFlightPhase = function(object)
     if not object then
         return "UNKNOWN"
     end
     
-    local altitude = DTC_Utils.getAltitude(object)
-    local speed = DTC_Utils.getSpeed(object)
+    local altitude = ATC_Utils.getAltitude(object)
+    local speed = ATC_Utils.getSpeed(object)
     local verticalSpeed = object:GetVelocityVec3().y * 196.85  -- Конвертация м/с в фут/мин
     
     -- Определение фазы полета на основе параметров
@@ -274,7 +273,7 @@ DTC_Utils.getFlightPhase = function(object)
 end
 
 -- Получение информации о погоде в районе координат
-DTC_Utils.getWeatherInfo = function(coord)
+ATC_Utils.getWeatherInfo = function(coord)
     if not coord then
         return nil
     end
@@ -307,7 +306,7 @@ DTC_Utils.getWeatherInfo = function(coord)
 end
 
 -- Форматирование информации о погоде для передачи пилоту
-DTC_Utils.formatWeatherInfo = function(weather)
+ATC_Utils.formatWeatherInfo = function(weather)
     if not weather then
         return "Информация о погоде недоступна"
     end
@@ -315,7 +314,7 @@ DTC_Utils.formatWeatherInfo = function(weather)
     local result = "Погода: "
     
     -- Ветер
-    result = result .. "Ветер " .. DTC_Utils.formatHeading(weather.windDirection) .. " градусов, " 
+    result = result .. "Ветер " .. ATC_Utils.formatHeading(weather.windDirection) .. " градусов, " 
                     .. math.floor(weather.windSpeed) .. " узлов. "
     
     -- Видимость
@@ -352,12 +351,12 @@ DTC_Utils.formatWeatherInfo = function(weather)
 end
 
 -- Получение информации ATIS для аэропорта
-DTC_Utils.getATISInfo = function(icao)
-    if not icao or not DTC_Navigraph.isDataLoaded then
+ATC_Utils.getATISInfo = function(icao)
+    if not icao or not ATC_Navigraph.isDataLoaded then
         return "Информация ATIS недоступна"
     end
     
-    local metadata = DTC_Navigraph.getAirportMetadata()
+    local metadata = ATC_Navigraph.getAirportMetadata()
     if not metadata then
         return "Информация ATIS недоступна"
     end
@@ -366,7 +365,7 @@ DTC_Utils.getATISInfo = function(icao)
     local elevation = metadata.Elevation
     
     -- Получение координат аэропорта (используем первую ВПП)
-    local runways = DTC_Navigraph.getAllRunways()
+    local runways = ATC_Navigraph.getAllRunways()
     local airportCoord = nil
     
     for name, runway in pairs(runways) do
@@ -379,11 +378,11 @@ DTC_Utils.getATISInfo = function(icao)
     end
     
     -- Получение информации о погоде
-    local weather = DTC_Utils.getWeatherInfo(airportCoord)
-    local weatherInfo = DTC_Utils.formatWeatherInfo(weather)
+    local weather = ATC_Utils.getWeatherInfo(airportCoord)
+    local weatherInfo = ATC_Utils.formatWeatherInfo(weather)
     
     -- Определение активной ВПП на основе ветра
-    local activeRunway = DTC_Utils.getActiveRunway(runways, weather.windDirection)
+    local activeRunway = ATC_Utils.getActiveRunway(runways, weather.windDirection)
     
     -- Формирование информации ATIS
     local atisInfo = "Информация ATIS аэропорта " .. airportName .. " (" .. icao .. "). "
@@ -395,7 +394,7 @@ DTC_Utils.getATISInfo = function(icao)
 end
 
 -- Определение активной ВПП на основе направления ветра
-DTC_Utils.getActiveRunway = function(runways, windDirection)
+ATC_Utils.getActiveRunway = function(runways, windDirection)
     if not runways or not windDirection then
         return nil
     end
@@ -417,7 +416,7 @@ DTC_Utils.getActiveRunway = function(runways, windDirection)
 end
 
 -- Проверка, находится ли объект в зоне ответственности службы ATC
-DTC_Utils.isInServiceRange = function(object, serviceCoord, range)
+ATC_Utils.isInServiceRange = function(object, serviceCoord, range)
     if not object or not serviceCoord then
         return false
     end
@@ -425,13 +424,13 @@ DTC_Utils.isInServiceRange = function(object, serviceCoord, range)
     range = range or 50  -- По умолчанию 50 морских миль
     
     local objectCoord = object:GetCoordinate()
-    local distance = DTC_Utils.getDistance(objectCoord, serviceCoord)
+    local distance = ATC_Utils.getDistance(objectCoord, serviceCoord)
     
     return distance <= range
 end
 
 -- Получение списка объектов в зоне ответственности службы ATC
-DTC_Utils.getObjectsInRange = function(serviceCoord, range, objectTypes)
+ATC_Utils.getObjectsInRange = function(serviceCoord, range, objectTypes)
     if not serviceCoord then
         return {}
     end
@@ -457,16 +456,16 @@ DTC_Utils.getObjectsInRange = function(serviceCoord, range, objectTypes)
 end
 
 -- Получение списка игроков в зоне ответственности службы ATC
-DTC_Utils.getPlayersInRange = function(serviceCoord, range)
+ATC_Utils.getPlayersInRange = function(serviceCoord, range)
     if not serviceCoord then
         return {}
     end
     
-    local objects = DTC_Utils.getObjectsInRange(serviceCoord, range)
+    local objects = ATC_Utils.getObjectsInRange(serviceCoord, range)
     local players = {}
     
     for _, object in pairs(objects) do
-        if DTC_Utils.isPlayer(object) then
+        if ATC_Utils.isPlayer(object) then
             table.insert(players, object)
         end
     end
@@ -475,16 +474,16 @@ DTC_Utils.getPlayersInRange = function(serviceCoord, range)
 end
 
 -- Получение списка AI в зоне ответственности службы ATC
-DTC_Utils.getAIInRange = function(serviceCoord, range)
+ATC_Utils.getAIInRange = function(serviceCoord, range)
     if not serviceCoord then
         return {}
     end
     
-    local objects = DTC_Utils.getObjectsInRange(serviceCoord, range)
+    local objects = ATC_Utils.getObjectsInRange(serviceCoord, range)
     local aiObjects = {}
     
     for _, object in pairs(objects) do
-        if not DTC_Utils.isPlayer(object) then
+        if not ATC_Utils.isPlayer(object) then
             table.insert(aiObjects, object)
         end
     end
@@ -493,7 +492,7 @@ DTC_Utils.getAIInRange = function(serviceCoord, range)
 end
 
 -- Получение информации о трафике вокруг объекта
-DTC_Utils.getTrafficInfo = function(object, range)
+ATC_Utils.getTrafficInfo = function(object, range)
     if not object then
         return {}
     end
@@ -501,19 +500,19 @@ DTC_Utils.getTrafficInfo = function(object, range)
     range = range or 10  -- По умолчанию 10 морских миль
     
     local objectCoord = object:GetCoordinate()
-    local objectAltitude = DTC_Utils.getAltitude(object)
-    local objectHeading = DTC_Utils.getObjectHeading(object)
+    local objectAltitude = ATC_Utils.getAltitude(object)
+    local objectHeading = ATC_Utils.getObjectHeading(object)
     
     local traffic = {}
-    local objects = DTC_Utils.getObjectsInRange(objectCoord, range)
+    local objects = ATC_Utils.getObjectsInRange(objectCoord, range)
     
     for _, otherObject in pairs(objects) do
         if otherObject:GetID() ~= object:GetID() then
             local otherCoord = otherObject:GetCoordinate()
-            local distance = DTC_Utils.getDistance(objectCoord, otherCoord)
-            local bearing = DTC_Utils.getHeading(objectCoord, otherCoord)
+            local distance = ATC_Utils.getDistance(objectCoord, otherCoord)
+            local bearing = ATC_Utils.getHeading(objectCoord, otherCoord)
             local relBearing = (bearing - objectHeading + 360) % 360
-            local altDiff = DTC_Utils.getAltitude(otherObject) - objectAltitude
+            local altDiff = ATC_Utils.getAltitude(otherObject) - objectAltitude
             
             -- Определение позиции относительно объекта
             local position = ""
@@ -545,7 +544,7 @@ DTC_Utils.getTrafficInfo = function(object, range)
                 altDiff = altDiff,
                 position = position,
                 altitude = altitude,
-                type = DTC_Utils.getAircraftType(otherObject)
+                type = ATC_Utils.getAircraftType(otherObject)
             })
         end
     end
@@ -557,107 +556,82 @@ DTC_Utils.getTrafficInfo = function(object, range)
 end
 
 -- Форматирование информации о трафике для передачи пилоту
-DTC_Utils.formatTrafficInfo = function(traffic)
+ATC_Utils.formatTrafficInfo = function(traffic)
     if not traffic or #traffic == 0 then
-        return "Трафик отсутствует"
-    end
-    
-    local result = "Информация о трафике: "
-    
-    for i, info in ipairs(traffic) do
-        if i <= 3 then  -- Ограничиваем до 3 ближайших объектов
-            result = result .. "Трафик " .. info.position .. ", " 
-                            .. math.floor(info.distance) .. " миль, "
-                            .. info.altitude .. ", "
-                            .. info.type .. ". "
-        end
-    end
-    
-    return result
-end
-
--- Получение информации о маршруте для процедуры
-DTC_Utils.getRouteInfo = function(procedure, procedureType)
-    if not procedure or not procedureType then
-        return "Информация о маршруте недоступна"
+        return "Трафик не обнаружен"
     end
     
     local result = ""
     
-    if procedureType == "SID" then
-        result = "Маршрут вылета " .. procedure.name .. " с ВПП " .. procedure.runway .. ": "
-    elseif procedureType == "STAR" then
-        result = "Маршрут прибытия " .. procedure.name .. " для ВПП " .. procedure.runway .. ": "
-    elseif procedureType == "APPROACH" then
-        result = "Маршрут захода " .. procedure.name .. " на ВПП " .. procedure.runway .. ": "
-    end
-    
-    -- Добавление путевых точек
-    for i, wp in ipairs(procedure.waypoints) do
-        result = result .. wp.name
+    for i, info in ipairs(traffic) do
+        if i > 3 then break end  -- Ограничиваем до 3 ближайших объектов
         
-        -- Добавление ограничений по высоте
-        if wp.altitude_min and wp.altitude_max then
-            result = result .. " (от " .. wp.altitude_min .. " до " .. wp.altitude_max .. " футов)"
-        elseif wp.altitude_min then
-            result = result .. " (минимум " .. wp.altitude_min .. " футов)"
-        elseif wp.altitude_max then
-            result = result .. " (максимум " .. wp.altitude_max .. " футов)"
-        end
-        
-        -- Добавление ограничений по скорости
-        if wp.speed then
-            result = result .. " [" .. wp.speed .. " узлов]"
-        end
-        
-        -- Разделитель между точками
-        if i < #procedure.waypoints then
-            result = result .. " - "
-        end
+        result = result .. "Трафик " .. info.position .. ", " .. info.altitude .. ", "
+                        .. math.floor(info.distance) .. " миль, "
+                        .. info.type .. ". "
     end
     
     return result
 end
 
--- Получение информации о векторении для захода на посадку
-DTC_Utils.getVectoringInfo = function(object, runway)
-    if not object or not runway then
-        return "Информация о векторении недоступна"
+-- Получение информации о векторе для захода на посадку
+ATC_Utils.getVectoringInfo = function(object, runwayData)
+    if not object or not runwayData then
+        return "Информация о векторе недоступна"
     end
     
     local objectCoord = object:GetCoordinate()
-    local runwayThresholdCoord = COORDINATE:NewFromLLDD(runway.threshold.lat, runway.threshold.lon)
+    local thresholdCoord = COORDINATE:NewFromLLDD(runwayData.threshold.lat, runwayData.threshold.lon)
     
-    local distance = DTC_Utils.getDistance(objectCoord, runwayThresholdCoord)
-    local bearing = DTC_Utils.getHeading(objectCoord, runwayThresholdCoord)
-    local headingToFinal = (runway.heading + 180) % 360  -- Курс для захода на посадку
+    local distance = ATC_Utils.getDistance(objectCoord, thresholdCoord)
+    local bearing = ATC_Utils.getHeading(objectCoord, thresholdCoord)
+    local runwayHeading = runwayData.heading
     
-    -- Расчет угла между текущим направлением на ВПП и курсом захода
-    local interceptAngle = math.abs((bearing - headingToFinal + 180) % 360 - 180)
+    -- Расчет угла между текущим курсом и курсом ВПП
+    local objectHeading = ATC_Utils.getObjectHeading(object)
+    local headingDiff = math.abs((objectHeading - runwayHeading + 180) % 360 - 180)
     
-    -- Определение рекомендуемого курса для выхода на посадочную прямую
-    local recommendedHeading = 0
+    -- Формирование информации о векторе
+    local result = "Для захода на ВПП " .. runwayData.name .. " "
     
-    if interceptAngle <= 20 then
-        -- Если угол перехвата небольшой, рекомендуем прямой заход
-        recommendedHeading = headingToFinal
+    if headingDiff > 45 then
+        -- Если самолет не направлен в сторону ВПП, даем вектор
+        result = result .. "возьмите курс " .. ATC_Utils.formatHeading(runwayHeading) .. ". "
     else
-        -- Иначе рекомендуем курс с углом перехвата 30 градусов
-        local direction = 1
-        if (bearing - headingToFinal + 360) % 360 < 180 then
-            direction = -1
-        end
-        
-        recommendedHeading = (headingToFinal + direction * 30 + 360) % 360
+        -- Если самолет уже примерно направлен в сторону ВПП, подтверждаем
+        result = result .. "продолжайте текущим курсом. "
     end
     
-    -- Формирование информации о векторении
-    local result = "Векторение для захода на ВПП " .. runway.name .. ": "
-    result = result .. "Расстояние до порога ВПП " .. math.floor(distance) .. " миль. "
-    result = result .. "Рекомендуемый курс " .. DTC_Utils.formatHeading(recommendedHeading) .. " градусов. "
-    result = result .. "Курс посадки " .. DTC_Utils.formatHeading(runway.heading) .. " градусов."
+    result = result .. "Расстояние до торца ВПП " .. math.floor(distance) .. " морских миль."
     
     return result
 end
 
-return DTC_Utils
+-- Получение длины таблицы
+ATC_Utils.tableLength = function(t)
+    local count = 0
+    for _ in pairs(t) do
+        count = count + 1
+    end
+    return count
+end
+
+-- Получение коалиции объекта
+ATC_Utils.getObjectCoalition = function(object)
+    if not object then
+        return nil
+    end
+    
+    return object:getCoalition()
+end
+
+-- Проверка, принадлежит ли объект указанной коалиции
+ATC_Utils.isObjectInCoalition = function(object, coalition)
+    if not object or not coalition then
+        return false
+    end
+    
+    return ATC_Utils.getObjectCoalition(object) == coalition
+end
+
+return ATC_Utils

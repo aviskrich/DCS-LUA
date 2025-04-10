@@ -1,16 +1,19 @@
 --[[
-DTC_Approach.lua
+ATC_Approach.lua
 Модуль службы Approach для универсального ATC модуля
-Автор: AVIskrich
+Автор: Andrey Iskrich
 Дата: Апрель 2025
 --]]
 
-local DTC_Approach = {}
+local ATC_Approach = {}
 
 -- Создание новой службы Approach
-DTC_Approach.new = function(icao, callsign, frequency, range)
+ATC_Approach.new = function(icao, callsign, frequency, range, coalition)
     -- Наследование от базового класса службы ATC
-    local approach = DTC_ATC_Service.new(icao, callsign, frequency, range or 50)
+    local approach = ATC_Service.new(icao, callsign, frequency, range or 50, coalition)
+    
+    -- Добавление ссылки на Navigraph для этого аэропорта
+    approach.navigraph = nil
     
     -- Переопределение инициализации
     local baseInit = approach.init
@@ -19,7 +22,17 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         self:log("Инициализация службы Approach")
         
         -- Инициализация данных о ВПП
-        self.runways = DTC_Navigraph.getAllRunways()
+        self.runways = {}
+        
+        -- Если есть ссылка на Navigraph, используем её
+        if self.navigraph then
+            self.runways = self.navigraph:getAllRunways()
+        else
+            -- Иначе используем глобальный Navigraph (для обратной совместимости)
+            local ATC_Navigraph = require("Scripts.ATC_Module.Core.ATC_Navigraph")
+            self.runways = ATC_Navigraph.getAllRunways()
+        end
+        
         self.activeRunway = nil
         
         -- Определение активной ВПП
@@ -37,14 +50,14 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         end
         
         -- Получение данных о погоде
-        local weather = DTC_Utils.getWeatherInfo(serviceCoord)
+        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
         if not weather then
             self:log("Не удалось получить данные о погоде")
             return
         end
         
         -- Определение активной ВПП на основе ветра
-        self.activeRunway = DTC_Utils.getActiveRunway(self.runways, weather.windDirection)
+        self.activeRunway = ATC_Utils.getActiveRunway(self.runways, weather.windDirection)
         
         if self.activeRunway then
             self:log("Установлена активная ВПП: " .. self.activeRunway)
@@ -84,7 +97,12 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
             return
         end
         
-        local playerName = DTC_Utils.getPlayerName(object)
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return
+        end
+        
+        local playerName = ATC_Utils.getPlayerName(object)
         if not playerName then
             return
         end
@@ -93,7 +111,7 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Определение фазы полета
-        local flightPhase = DTC_Utils.getFlightPhase(object)
+        local flightPhase = ATC_Utils.getFlightPhase(object)
         
         -- Если объект на подходе к аэродрому, приветствуем его
         if flightPhase == "APPROACH" or flightPhase == "DESCENT" then
@@ -107,11 +125,16 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
             return false
         end
         
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
         -- Получение позывного объекта
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Определение фазы полета
-        local flightPhase = DTC_Utils.getFlightPhase(object)
+        local flightPhase = ATC_Utils.getFlightPhase(object)
         
         -- Если объект на земле, отказываем
         if flightPhase == "GROUND" then
@@ -124,14 +147,14 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         
         -- Получение данных о погоде
         local serviceCoord = self:getCoordinate()
-        local weather = DTC_Utils.getWeatherInfo(serviceCoord)
+        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
         
         -- Формирование информации о погоде
-        local weatherInfo = DTC_Utils.formatWeatherInfo(weather)
+        local weatherInfo = ATC_Utils.formatWeatherInfo(weather)
         
         -- Проверка трафика
-        local traffic = DTC_Utils.getTrafficInfo(object, 10)
-        local trafficInfo = DTC_Utils.formatTrafficInfo(traffic)
+        local traffic = ATC_Utils.getTrafficInfo(object, 10)
+        local trafficInfo = ATC_Utils.formatTrafficInfo(traffic)
         
         -- Формирование ответа
         local response = callsign .. ", опознан радаром. " .. weatherInfo .. " " .. trafficInfo
@@ -141,33 +164,53 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         
         -- Получение рекомендуемой STAR процедуры
         local objectCoord = object:GetCoordinate()
-        local objectHeading = DTC_Utils.getObjectHeading(object)
+        local objectHeading = ATC_Utils.getObjectHeading(object)
         
-        local recommendedSTAR = DTC_Procedures.getRecommendedSTAR(self.activeRunway, objectHeading)
+        local recommendedSTAR = nil
+        
+        -- Если есть ссылка на Navigraph, используем её
+        if self.navigraph then
+            local ATC_Procedures = require("Scripts.ATC_Module.Core.ATC_Procedures")
+            recommendedSTAR = ATC_Procedures.getRecommendedSTAR(self.navigraph, self.activeRunway, objectHeading)
+        else
+            -- Иначе используем глобальный Procedures (для обратной совместимости)
+            recommendedSTAR = ATC_Procedures.getRecommendedSTAR(self.activeRunway, objectHeading)
+        end
         
         if recommendedSTAR then
             -- Отправка информации о STAR процедуре
-            local starInfo = DTC_Procedures.getProcedureInfo(recommendedSTAR.data, "STAR")
+            local starInfo = ATC_Procedures.getProcedureInfo(recommendedSTAR.data, "STAR")
             self:sendMessage(object, "Следуйте по STAR " .. recommendedSTAR.name .. " для ВПП " .. self.activeRunway .. ".")
             self:sendMessage(object, starInfo)
             
             -- Начало отслеживания выполнения процедуры
-            DTC_MonitoringManager.trackObject(object, recommendedSTAR.data, "STAR", self)
+            ATC_MonitoringManager.trackObject(object, recommendedSTAR.data, "STAR", self)
         else
             -- Если нет STAR процедуры, отправляем информацию о векторении
             local runwayData = self.runways[self.activeRunway]
             if runwayData then
-                local vectoringInfo = DTC_Utils.getVectoringInfo(object, runwayData)
+                local vectoringInfo = ATC_Utils.getVectoringInfo(object, runwayData)
                 self:sendMessage(object, vectoringInfo)
             end
         end
         
+        -- Получение службы Tower для этого аэропорта
+        local towerService = nil
+        
+        -- Используем ATC_AirportManager для получения службы Tower
+        local ATC_AirportManager = require("Scripts.ATC_Module.Core.ATC_AirportManager")
+        local airport = ATC_AirportManager.getActiveAirport(self.icao)
+        
+        if airport and airport.tower then
+            towerService = airport.tower
+        end
+        
         -- Информация о переходе на частоту Tower
-        if DTC_ATC and DTC_ATC.tower then
-            local towerFrequency = DTC_ATC.tower.frequency
-            local towerCallsign = DTC_ATC.tower.callsign
+        if towerService then
+            local towerFrequency = towerService.frequency
+            local towerCallsign = towerService.callsign
             
-            self:sendMessage(object, "Доложите на конечном этапе захода. Затем переходите на частоту " .. towerCallsign .. ", " .. DTC_Utils.formatFrequency(towerFrequency) .. ".")
+            self:sendMessage(object, "Доложите на конечном этапе захода. Затем переходите на частоту " .. towerCallsign .. ", " .. ATC_Utils.formatFrequency(towerFrequency) .. ".")
         end
         
         return true
@@ -179,11 +222,16 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
             return false
         end
         
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
         -- Получение позывного объекта
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Определение фазы полета
-        local flightPhase = DTC_Utils.getFlightPhase(object)
+        local flightPhase = ATC_Utils.getFlightPhase(object)
         
         -- Если объект на земле, отказываем
         if flightPhase == "GROUND" then
@@ -196,16 +244,16 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         
         -- Получение данных о погоде
         local serviceCoord = self:getCoordinate()
-        local weather = DTC_Utils.getWeatherInfo(serviceCoord)
+        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
         
         -- Формирование информации о ветре
         local windInfo = ""
         if weather then
-            windInfo = "Ветер " .. DTC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов. "
+            windInfo = "Ветер " .. ATC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов. "
         end
         
         -- Проверка трафика
-        local traffic = DTC_Utils.getTrafficInfo(object, 10)
+        local traffic = ATC_Utils.getTrafficInfo(object, 10)
         local trafficInfo = ""
         
         if #traffic > 0 then
@@ -219,30 +267,50 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         self:sendMessage(object, response)
         
         -- Получение рекомендуемой процедуры захода
-        local recommendedApproach = DTC_Procedures.getRecommendedApproach(self.activeRunway)
+        local recommendedApproach = nil
+        
+        -- Если есть ссылка на Navigraph, используем её
+        if self.navigraph then
+            local ATC_Procedures = require("Scripts.ATC_Module.Core.ATC_Procedures")
+            recommendedApproach = ATC_Procedures.getRecommendedApproach(self.navigraph, self.activeRunway)
+        else
+            -- Иначе используем глобальный Procedures (для обратной совместимости)
+            recommendedApproach = ATC_Procedures.getRecommendedApproach(self.activeRunway)
+        end
         
         if recommendedApproach then
             -- Отправка информации о процедуре захода
-            local approachInfo = DTC_Procedures.getProcedureInfo(recommendedApproach.data, "APPROACH")
+            local approachInfo = ATC_Procedures.getProcedureInfo(recommendedApproach.data, "APPROACH")
             self:sendMessage(object, approachInfo)
             
             -- Начало отслеживания выполнения процедуры
-            DTC_MonitoringManager.trackObject(object, recommendedApproach.data, "APPROACH", self)
+            ATC_MonitoringManager.trackObject(object, recommendedApproach.data, "APPROACH", self)
         else
             -- Если нет процедуры захода, отправляем информацию о векторении
             local runwayData = self.runways[self.activeRunway]
             if runwayData then
-                local vectoringInfo = DTC_Utils.getVectoringInfo(object, runwayData)
+                local vectoringInfo = ATC_Utils.getVectoringInfo(object, runwayData)
                 self:sendMessage(object, vectoringInfo)
             end
         end
         
+        -- Получение службы Tower для этого аэропорта
+        local towerService = nil
+        
+        -- Используем ATC_AirportManager для получения службы Tower
+        local ATC_AirportManager = require("Scripts.ATC_Module.Core.ATC_AirportManager")
+        local airport = ATC_AirportManager.getActiveAirport(self.icao)
+        
+        if airport and airport.tower then
+            towerService = airport.tower
+        end
+        
         -- Информация о переходе на частоту Tower
-        if DTC_ATC and DTC_ATC.tower then
-            local towerFrequency = DTC_ATC.tower.frequency
-            local towerCallsign = DTC_ATC.tower.callsign
+        if towerService then
+            local towerFrequency = towerService.frequency
+            local towerCallsign = towerService.callsign
             
-            self:sendMessage(object, "На конечном этапе захода переходите на частоту " .. towerCallsign .. ", " .. DTC_Utils.formatFrequency(towerFrequency) .. ".")
+            self:sendMessage(object, "На конечном этапе захода переходите на частоту " .. towerCallsign .. ", " .. ATC_Utils.formatFrequency(towerFrequency) .. ".")
         end
         
         return true
@@ -254,11 +322,16 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
             return false
         end
         
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
         -- Получение позывного объекта
         local callsign = object:getCallsign() or "Aircraft"
         
         -- Определение фазы полета
-        local flightPhase = DTC_Utils.getFlightPhase(object)
+        local flightPhase = ATC_Utils.getFlightPhase(object)
         
         -- Если объект на земле, отказываем
         if flightPhase == "GROUND" then
@@ -271,7 +344,7 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         
         -- Получение расстояния до аэродрома
         local serviceCoord = self:getCoordinate()
-        local distance = DTC_Utils.getDistance(objectCoord, serviceCoord)
+        local distance = ATC_Utils.getDistance(objectCoord, serviceCoord)
         
         -- Формирование ответа
         local response = callsign .. ", вас понял. Расстояние до аэродрома " .. math.floor(distance) .. " миль."
@@ -283,10 +356,10 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         self:updateActiveRunway()
         
         -- Получение данных о погоде
-        local weather = DTC_Utils.getWeatherInfo(serviceCoord)
+        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
         
         -- Формирование информации о погоде
-        local weatherInfo = DTC_Utils.formatWeatherInfo(weather)
+        local weatherInfo = ATC_Utils.formatWeatherInfo(weather)
         
         -- Отправка информации о погоде
         self:sendMessage(object, weatherInfo)
@@ -295,18 +368,27 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
         self:sendMessage(object, "Активная ВПП " .. self.activeRunway .. ".")
         
         -- Получение рекомендуемой STAR процедуры
-        local objectHeading = DTC_Utils.getObjectHeading(object)
+        local objectHeading = ATC_Utils.getObjectHeading(object)
         
-        local recommendedSTAR = DTC_Procedures.getRecommendedSTAR(self.activeRunway, objectHeading)
+        local recommendedSTAR = nil
+        
+        -- Если есть ссылка на Navigraph, используем её
+        if self.navigraph then
+            local ATC_Procedures = require("Scripts.ATC_Module.Core.ATC_Procedures")
+            recommendedSTAR = ATC_Procedures.getRecommendedSTAR(self.navigraph, self.activeRunway, objectHeading)
+        else
+            -- Иначе используем глобальный Procedures (для обратной совместимости)
+            recommendedSTAR = ATC_Procedures.getRecommendedSTAR(self.activeRunway, objectHeading)
+        end
         
         if recommendedSTAR then
             -- Отправка информации о STAR процедуре
-            local starInfo = DTC_Procedures.getProcedureInfo(recommendedSTAR.data, "STAR")
+            local starInfo = ATC_Procedures.getProcedureInfo(recommendedSTAR.data, "STAR")
             self:sendMessage(object, "Следуйте по STAR " .. recommendedSTAR.name .. " для ВПП " .. self.activeRunway .. ".")
             self:sendMessage(object, starInfo)
             
             -- Начало отслеживания выполнения процедуры
-            DTC_MonitoringManager.trackObject(object, recommendedSTAR.data, "STAR", self)
+            ATC_MonitoringManager.trackObject(object, recommendedSTAR.data, "STAR", self)
         end
         
         return true
@@ -318,4 +400,4 @@ DTC_Approach.new = function(icao, callsign, frequency, range)
     return approach
 end
 
-return DTC_Approach
+return ATC_Approach
