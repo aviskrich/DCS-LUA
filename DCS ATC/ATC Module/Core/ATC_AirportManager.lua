@@ -8,7 +8,9 @@ ATC_AirportManager.lua
 local ATC_AirportManager = {}
 
 -- Загрузка модуля фильтрации по коалициям
-local ATC_CoalitionFilter = require("Scripts.ATC_Module.Core.ATC_CoalitionFilter")
+ATC_CoalitionFilter = dofile(project_path .. "Core/ATC_CoalitionFilter.lua")
+ATC_Utils = dofile(project_path .. "Core/ATC_Utils.lua")
+ATC_Navigraph = dofile(project_path .. "Core/ATC_Navigraph.lua")
 
 -- Таблица для хранения экземпляров аэропортов
 ATC_AirportManager.airports = {}
@@ -113,7 +115,7 @@ ATC_AirportManager.activateAirport = function(icao)
     ATC_AirportManager.log("Активация аэропорта " .. icao)
     
     -- Инициализация Navigraph для аэропорта
-    local navigraph = ATC_Navigraph.new(icao)
+    local navigraph = ATC_Navigraph.init(icao)
     airport.navigraph = navigraph
     
     -- Загрузка данных Navigraph
@@ -169,7 +171,8 @@ ATC_AirportManager.initAirportServices = function(airport)
         local towerCallsign = atcConfig.TOWER.CALLSIGN or (icao .. " Tower")
         local towerRange = atcConfig.TOWER.RANGE
         
-        local ATC_Tower = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Tower.lua")
+        -- local ATC_Tower = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Tower.lua")
+        local ATC_Tower = dofile(ATC.project_path .. "Services/ATC_Tower.lua")
         airport.tower = ATC_Tower.new(icao, towerCallsign, towerFrequency, towerRange, coalition)
         airport.tower.navigraph = airport.navigraph
         airport.tower:start()
@@ -183,7 +186,8 @@ ATC_AirportManager.initAirportServices = function(airport)
         local approachCallsign = atcConfig.APPROACH.CALLSIGN or (icao .. " Approach")
         local approachRange = atcConfig.APPROACH.RANGE
         
-        local ATC_Approach = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Approach.lua")
+        -- local ATC_Approach = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Approach.lua")
+        local ATC_Approach = dofile(ATC.project_path .. "Services/ATC_Approach.lua")
         airport.approach = ATC_Approach.new(icao, approachCallsign, approachFrequency, approachRange, coalition)
         airport.approach.navigraph = airport.navigraph
         airport.approach:start()
@@ -197,7 +201,8 @@ ATC_AirportManager.initAirportServices = function(airport)
         local departureCallsign = atcConfig.DEPARTURE.CALLSIGN or (icao .. " Departure")
         local departureRange = atcConfig.DEPARTURE.RANGE
         
-        local ATC_Departure = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Departure.lua")
+        -- local ATC_Departure = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Departure.lua")
+        local ATC_Departure = dofile(ATC.project_path .. "Services/ATC_Departure.lua")
         airport.departure = ATC_Departure.new(icao, departureCallsign, departureFrequency, departureRange, coalition)
         airport.departure.navigraph = airport.navigraph
         airport.departure:start()
@@ -227,7 +232,8 @@ ATC_AirportManager.initAirportMenu = function(airport)
     local menuName = icao .. " ATC"
     
     -- Загрузка модуля меню
-    local ATC_Menu = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Menu.lua")
+    -- local ATC_Menu = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Menu.lua")
+    local ATC_Menu = dofile(ATC.project_path .. "Services/ATC_Menu.lua")
     
     -- Создание меню с учетом коалиции
     airport.menu = ATC_Menu.new(menuName, coalition)

@@ -1,7 +1,7 @@
 --[[
 ATC_Utils.lua
 Вспомогательные функции для универсального ATC модуля
-Автор: Andrey Iskrich
+Автор: Manus AI
 Дата: Апрель 2025
 --]]
 
@@ -84,8 +84,9 @@ ATC_Utils.getAltitude = function(object)
         return 0
     end
     
-    if type(object) == "table" then
-        return object:GetAltitude()
+    local point = object:GetPoint()
+    if point then
+        return point.y
     end
     
     return 0
@@ -558,80 +559,97 @@ end
 -- Форматирование информации о трафике для передачи пилоту
 ATC_Utils.formatTrafficInfo = function(traffic)
     if not traffic or #traffic == 0 then
-        return "Трафик не обнаружен"
+        return "Трафик отсутствует."
     end
     
-    local result = ""
+    local result = "Трафик: "
     
     for i, info in ipairs(traffic) do
-        if i > 3 then break end  -- Ограничиваем до 3 ближайших объектов
-        
-        result = result .. "Трафик " .. info.position .. ", " .. info.altitude .. ", "
-                        .. math.floor(info.distance) .. " миль, "
-                        .. info.type .. ". "
+        if i <= 3 then  -- Ограничиваем количество сообщений о трафике
+            result = result .. info.type .. " " .. info.position .. ", " .. math.floor(info.distance) .. " миль, " .. info.altitude .. ". "
+        end
     end
     
     return result
 end
 
--- Получение информации о векторе для захода на посадку
+-- Получение информации о векторении для захода на ВПП
 ATC_Utils.getVectoringInfo = function(object, runwayData)
     if not object or not runwayData then
-        return "Информация о векторе недоступна"
+        return "Информация о векторении недоступна."
     end
     
     local objectCoord = object:GetCoordinate()
-    local thresholdCoord = COORDINATE:NewFromLLDD(runwayData.threshold.lat, runwayData.threshold.lon)
+    local runwayCoord = COORDINATE:NewFromLLDD(runwayData.threshold.lat, runwayData.threshold.lon)
     
-    local distance = ATC_Utils.getDistance(objectCoord, thresholdCoord)
-    local bearing = ATC_Utils.getHeading(objectCoord, thresholdCoord)
-    local runwayHeading = runwayData.heading
+    local distance = ATC_Utils.getDistance(objectCoord, runwayCoord)
+    local bearing = ATC_Utils.getHeading(objectCoord, runwayCoord)
     
-    -- Расчет угла между текущим курсом и курсом ВПП
-    local objectHeading = ATC_Utils.getObjectHeading(object)
-    local headingDiff = math.abs((objectHeading - runwayHeading + 180) % 360 - 180)
-    
-    -- Формирование информации о векторе
-    local result = "Для захода на ВПП " .. runwayData.name .. " "
-    
-    if headingDiff > 45 then
-        -- Если самолет не направлен в сторону ВПП, даем вектор
-        result = result .. "возьмите курс " .. ATC_Utils.formatHeading(runwayHeading) .. ". "
-    else
-        -- Если самолет уже примерно направлен в сторону ВПП, подтверждаем
-        result = result .. "продолжайте текущим курсом. "
-    end
-    
-    result = result .. "Расстояние до торца ВПП " .. math.floor(distance) .. " морских миль."
+    local result = "Векторение: курс " .. ATC_Utils.formatHeading(bearing) .. " градусов, дистанция " .. math.floor(distance) .. " миль до порога ВПП."
     
     return result
 end
 
--- Получение длины таблицы
-ATC_Utils.tableLength = function(t)
-    local count = 0
-    for _ in pairs(t) do
-        count = count + 1
-    end
-    return count
-end
-
--- Получение коалиции объекта
-ATC_Utils.getObjectCoalition = function(object)
-    if not object then
-        return nil
+-- Получение информации о положении ВПП на "часах"
+ATC_Utils.getRunwayClockPosition = function(object, runwayData)
+    if not object or not runwayData then
+        return "Информация о положении ВПП недоступна."
     end
     
-    return object:getCoalition()
+    local objectCoord = object:GetCoordinate()
+    local runwayCoord = COORDINATE:NewFromLLDD(runwayData.threshold.lat, runwayData.threshold.lon)
+    
+    local distance = ATC_Utils.getDistance(objectCoord, runwayCoord)
+    local bearing = ATC_Utils.getHeading(objectCoord, runwayCoord)
+    local objectHeading = ATC_Utils.getObjectHeading(object)
+    
+    -- Расчет положения на "часах"
+    local relBearing = (bearing - objectHeading + 360) % 360
+    local clockPosition = math.floor(relBearing / 30) + 1
+    if clockPosition > 12 then clockPosition = 12 end
+    
+    local result = "ВПП на " .. clockPosition .. " часах, дистанция " .. math.floor(distance) .. " миль."
+    
+    return result
 end
 
--- Проверка, принадлежит ли объект указанной коалиции
-ATC_Utils.isObjectInCoalition = function(object, coalition)
-    if not object or not coalition then
+-- Проверка погодных условий для визуального захода
+ATC_Utils.canPerformVisualApproach = function(coord)
+    if not coord then
         return false
     end
     
-    return ATC_Utils.getObjectCoalition(object) == coalition
+    local weather = ATC_Utils.getWeatherInfo(coord)
+    if not weather then
+        return false
+    end
+    
+    -- Проверка видимости (минимум 5 км)
+    if weather.visibility < 5000 then
+        return false
+    end
+    
+    -- Проверка облачности (минимум 1000 метров)
+    if weather.cloudBase and weather.cloudBase < 1000 then
+        return false
+    end
+    
+    return true
+end
+
+-- Проверка, находится ли объект в зоне визуального захода
+ATC_Utils.isInVisualApproachRange = function(object, runwayData)
+    if not object or not runwayData then
+        return false
+    end
+    
+    local objectCoord = object:GetCoordinate()
+    local runwayCoord = COORDINATE:NewFromLLDD(runwayData.threshold.lat, runwayData.threshold.lon)
+    
+    local distance = ATC_Utils.getDistance(objectCoord, runwayCoord)
+    
+    -- Проверка дистанции (максимум 5 миль)
+    return distance <= 5
 end
 
 return ATC_Utils

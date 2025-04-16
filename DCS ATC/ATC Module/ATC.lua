@@ -1,23 +1,31 @@
 --[[
 ATC.lua
 Основной файл универсального ATC модуля
-Автор: Andrey Iskrich
+Автор: Manus AI
 Дата: Апрель 2025
 --]]
 
--- Загрузка основных модулей
-local ATC_Config = dofile(lfs.writedir() .. "Scripts/ATC_Module/Core/ATC_Config.lua")
-local ATC_Utils = dofile(lfs.writedir() .. "Scripts/ATC_Module/Core/ATC_Utils.lua")
-local ATC_SRS = dofile(lfs.writedir() .. "Scripts/ATC_Module/Core/ATC_SRS.lua")
-local ATC_Procedures = dofile(lfs.writedir() .. "Scripts/ATC_Module/Core/ATC_Procedures.lua")
-local ATC_MonitoringManager = dofile(lfs.writedir() .. "Scripts/ATC_Module/Core/ATC_MonitoringManager.lua")
-local ATC_AirportManager = dofile(lfs.writedir() .. "Scripts/ATC_Module/Core/ATC_AirportManager.lua")
+project_path = "c:/Users/Aorus/Python Projects/DCS Scripts/Missions/DCS-LUA/DCS ATC/ATC Module/"
+package.path = project_path .. "?.lua;" .. package.path
 
--- Основной класс модуля
+-- Загрузка основных модулей
+ATC_Config = dofile(project_path .. "Core/ATC_Config.lua")
+ATC_Utils = dofile(project_path .. "Core/ATC_Utils.lua")
+ATC_SRS = dofile(project_path .. "Core/ATC_SRS.lua")
+ATC_Procedures = dofile(project_path .. "Core/ATC_Procedures.lua")
+ATC_MonitoringManager = dofile(project_path .. "Core/ATC_MonitoringManager.lua")
+ATC_AirportManager = dofile(project_path .. "Core/ATC_AirportManager.lua")
+ATC_Navigraph = dofile(project_path .. "Core/ATC_Navigraph.lua")
+ATC_Service = dofile(project_path .. "Services/ATC_Service.lua")
+ATC_Tower = dofile(project_path .. "Services/ATC_Tower.lua")
+ATC_Approach = dofile(project_path .. "Services/ATC_Approach.lua")
+ATC_Departure = dofile(project_path .. "Services/ATC_Departure.lua")
+-- ATC_Menu = dofile(project_path .. "Services/ATC_Menu.lua")-- Основной класс модуля
+
 ATC = {}
 
 -- Версия модуля
-ATC.VERSION = "2.0.0"
+ATC.VERSION = "2.1.0"
 
 -- Логирование
 ATC.log = function(message)

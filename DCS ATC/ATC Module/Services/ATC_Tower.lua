@@ -1,7 +1,7 @@
 --[[
 ATC_Tower.lua
 Модуль службы Tower для универсального ATC модуля
-Автор: Andrey Iskrich
+Автор: Manus AI
 Дата: Апрель 2025
 --]]
 
@@ -14,6 +14,17 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
     
     -- Добавление ссылки на Navigraph для этого аэропорта
     tower.navigraph = nil
+    
+    -- Добавление меню F10
+    tower.menu = nil
+    tower.menuItems = {}
+    
+    -- Состояние ВПП
+    tower.runwayStatus = {
+        isClear = true,
+        pendingLandings = {},
+        pendingTakeoffs = {}
+    }
     
     -- Переопределение инициализации
     local baseInit = tower.init
@@ -37,6 +48,9 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         
         -- Определение активной ВПП
         self:updateActiveRunway()
+        
+        -- Инициализация меню F10
+        self:initMenu()
         
         return true
     end
@@ -72,7 +86,18 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         baseStart(self)
         
         -- Запуск планировщика для регулярного обновления активной ВПП
-        self.runwayScheduler = mist.scheduleFunction(function() self:updateActiveRunway() end, {}, timer.getTime() + 300, 300)
+        -- Используем MOOSE SCHEDULER вместо mist.scheduleFunction
+        self.runwayScheduler = SCHEDULER:New(nil, 
+            function() 
+                self:updateActiveRunway() 
+            end, 
+            {}, 
+            5, -- начальная задержка 5 секунд
+            300 -- повторять каждые 300 секунд (5 минут)
+        )
+        
+        -- Активация меню F10
+        self:activateMenu()
         
         return true
     end
@@ -84,11 +109,193 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         
         -- Остановка планировщика обновления ВПП
         if self.runwayScheduler then
-            mist.removeFunction(self.runwayScheduler)
+            self.runwayScheduler:Stop()
             self.runwayScheduler = nil
         end
         
+        -- Деактивация меню F10
+        self:deactivateMenu()
+        
         return true
+    end
+    
+    -- Инициализация меню F10
+    tower.initMenu = function(self)
+        -- Создаем меню только если указана коалиция
+        if self.coalition then
+            -- Создаем корневое меню для службы
+            self.menu = MENU_COALITION:New(self.coalition, self.callsign)
+            
+            -- Добавляем пункты меню
+            self:addMenuItems()
+        end
+    end
+    
+    -- Добавление пунктов меню F10
+    tower.addMenuItems = function(self)
+        if not self.menu then
+            return
+        end
+        
+        -- Запрос руления
+        self.menuItems.requestTaxi = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Запросить руление",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleTaxiRequest(unit)
+                end
+            end
+        )
+        
+        -- Запрос взлета
+        self.menuItems.requestTakeoff = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Запросить взлет",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleTakeoffRequest(unit)
+                end
+            end
+        )
+        
+        -- Запрос посадки
+        self.menuItems.requestLanding = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Запросить посадку",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleLandingRequest(unit)
+                end
+            end
+        )
+        
+        -- Запрос визуального захода
+        self.menuItems.requestVisualApproach = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Запросить визуальный заход",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleVisualApproachRequest(unit)
+                end
+            end
+        )
+        
+        -- Доклад "полосу наблюдаю"
+        self.menuItems.reportRunwayInSight = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Полосу наблюдаю",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleRunwayInSight(unit)
+                end
+            end
+        )
+        
+        -- Доклад "готов к взлету"
+        self.menuItems.reportReadyForTakeoff = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Готов к взлету",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleReadyForTakeoff(unit)
+                end
+            end
+        )
+        
+        -- Доклад "готов к заходу"
+        self.menuItems.reportReadyForApproach = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Готов к заходу",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleReadyForApproach(unit)
+                end
+            end
+        )
+        
+        -- Доклад "полосу освободил"
+        self.menuItems.reportRunwayClear = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Полосу освободил",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleRunwayClear(unit)
+                end
+            end
+        )
+        
+        -- Доклад "вышел на связь"
+        self.menuItems.reportOnFrequency = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Вышел на связь",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleOnFrequency(unit)
+                end
+            end
+        )
+        
+        -- Запрос информации о погоде
+        self.menuItems.requestWeather = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Запросить погоду",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    local serviceCoord = self:getCoordinate()
+                    local weather = ATC_Utils.getWeatherInfo(serviceCoord)
+                    local weatherInfo = ATC_Utils.formatWeatherInfo(weather)
+                    self:sendMessage(unit, weatherInfo)
+                end
+            end
+        )
+        
+        -- Запрос информации о ВПП
+        self.menuItems.requestRunway = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Запросить активную ВПП",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:sendMessage(unit, "Активная ВПП " .. self.activeRunway .. ".")
+                end
+            end
+        )
+    end
+    
+    -- Активация меню F10
+    tower.activateMenu = function(self)
+        if self.menu then
+            self.menu:Set()
+        end
+    end
+    
+    -- Деактивация меню F10
+    tower.deactivateMenu = function(self)
+        if self.menu then
+            self.menu:Remove()
+        end
     end
     
     -- Обработчик нового объекта в зоне ответственности
@@ -115,11 +322,88 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         
         -- Если объект на земле, приветствуем его
         if flightPhase == "GROUND" then
-            self:sendMessage(object, callsign .. ", добро пожаловать в " .. self.icao .. ". Для запроса руления используйте фразу 'request taxi'.")
+            self:sendMessage(object, callsign .. ", добро пожаловать в " .. self.icao .. ". Для запроса руления используйте меню F10.")
         -- Если объект на подходе к аэродрому, информируем о необходимости запроса посадки
         elseif flightPhase == "APPROACH" or flightPhase == "DESCENT" then
-            self:sendMessage(object, callsign .. ", вы вошли в зону ответственности " .. self.callsign .. ". Для запроса посадки используйте фразу 'request landing'.")
+            self:sendMessage(object, callsign .. ", вы вошли в зону ответственности " .. self.callsign .. ". Для запроса посадки используйте меню F10.")
         end
+    end
+    
+    -- Уведомление о прибытии объекта от службы Approach
+    tower.notifyIncomingObject = function(self, object, fromService)
+        if not object then
+            return
+        end
+        
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return
+        end
+        
+        local playerName = ATC_Utils.getPlayerName(object)
+        if not playerName then
+            return
+        end
+        
+        -- Получение позывного объекта
+        local callsign = object:getCallsign() or "Aircraft"
+        
+        -- Добавляем объект в список отслеживаемых
+        self:trackObject(object)
+        
+        -- Ожидаем доклада "вышел на связь"
+        self:log("Ожидаем доклад 'вышел на связь' от " .. callsign)
+    end
+    
+    -- Обработчик доклада "вышел на связь"
+    tower.handleOnFrequency = function(self, object)
+        if not object then
+            return false
+        end
+        
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
+        -- Получение позывного объекта
+        local callsign = object:getCallsign() or "Aircraft"
+        
+        -- Определение фазы полета
+        local flightPhase = ATC_Utils.getFlightPhase(object)
+        
+        -- Если объект на земле, отказываем
+        if flightPhase == "GROUND" then
+            self:sendMessage(object, callsign .. ", вас понял. Для запроса руления используйте меню F10.")
+            return true
+        end
+        
+        -- Проверка состояния ВПП
+        if self.runwayStatus.isClear then
+            -- Если ВПП свободна, разрешаем заход и посадку
+            self:sendMessage(object, callsign .. ", вас понял. Разрешаю заход и посадку на ВПП " .. self.activeRunway .. ".")
+        else
+            -- Если ВПП занята, разрешаем только заход
+            self:sendMessage(object, callsign .. ", вас понял. Разрешаю заход на ВПП " .. self.activeRunway .. ". Посадку дополнительно.")
+            
+            -- Добавляем в очередь на посадку
+            table.insert(self.runwayStatus.pendingLandings, object:GetID())
+        end
+        
+        -- Получение данных о погоде
+        local serviceCoord = self:getCoordinate()
+        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
+        
+        -- Формирование информации о ветре
+        local windInfo = ""
+        if weather then
+            windInfo = "Ветер " .. ATC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов."
+        end
+        
+        -- Отправка информации о ветре
+        self:sendMessage(object, windInfo)
+        
+        return true
     end
     
     -- Обработчик запроса на руление
@@ -191,6 +475,14 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         -- Обновление активной ВПП
         self:updateActiveRunway()
         
+        -- Проверка состояния ВПП
+        if not self.runwayStatus.isClear then
+            -- Если ВПП занята, добавляем в очередь на взлет
+            self:sendMessage(object, callsign .. ", ВПП " .. self.activeRunway .. " занята. Ожидайте разрешения на взлет.")
+            table.insert(self.runwayStatus.pendingTakeoffs, object:GetID())
+            return true
+        end
+        
         -- Получение данных о погоде
         local serviceCoord = self:getCoordinate()
         local weather = ATC_Utils.getWeatherInfo(serviceCoord)
@@ -250,6 +542,18 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
             self:sendMessage(object, "После взлета переходите на частоту " .. departureCallsign .. ", " .. ATC_Utils.formatFrequency(departureFrequency) .. ".")
         end
         
+        -- Устанавливаем статус ВПП как занятой
+        self.runwayStatus.isClear = false
+        
+        -- Запускаем таймер для автоматического освобождения ВПП через 2 минуты
+        SCHEDULER:New(nil, 
+            function() 
+                self:handleRunwayClearTimeout(object:GetID()) 
+            end, 
+            {}, 
+            120 -- 2 минуты
+        )
+        
         return true
     end
     
@@ -279,6 +583,14 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         -- Обновление активной ВПП
         self:updateActiveRunway()
         
+        -- Проверка состояния ВПП
+        if not self.runwayStatus.isClear then
+            -- Если ВПП занята, разрешаем только заход
+            self:sendMessage(object, callsign .. ", ВПП " .. self.activeRunway .. " занята. Разрешаю заход, посадку дополнительно.")
+            table.insert(self.runwayStatus.pendingLandings, object:GetID())
+            return true
+        end
+        
         -- Получение данных о погоде
         local serviceCoord = self:getCoordinate()
         local weather = ATC_Utils.getWeatherInfo(serviceCoord)
@@ -298,7 +610,7 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         end
         
         -- Формирование ответа
-        local response = callsign .. ", " .. windInfo .. trafficInfo .. "Разрешаю заход на ВПП " .. self.activeRunway .. "."
+        local response = callsign .. ", " .. windInfo .. trafficInfo .. "Разрешаю заход и посадку на ВПП " .. self.activeRunway .. "."
         
         -- Отправка ответа
         self:sendMessage(object, response)
@@ -331,6 +643,117 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
             end
         end
         
+        -- Устанавливаем статус ВПП как занятой
+        self.runwayStatus.isClear = false
+        
+        return true
+    end
+    
+    -- Обработчик запроса на визуальный заход
+    tower.handleVisualApproachRequest = function(self, object)
+        if not object then
+            return false
+        end
+        
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
+        -- Получение позывного объекта
+        local callsign = object:getCallsign() or "Aircraft"
+        
+        -- Определение фазы полета
+        local flightPhase = ATC_Utils.getFlightPhase(object)
+        
+        -- Если объект на земле, отказываем
+        if flightPhase == "GROUND" then
+            self:sendMessage(object, callsign .. ", невозможно выполнить запрос на визуальный заход. Вы на земле.")
+            return true
+        end
+        
+        -- Обновление активной ВПП
+        self:updateActiveRunway()
+        
+        -- Получение данных о погоде
+        local serviceCoord = self:getCoordinate()
+        
+        -- Проверка возможности выполнения визуального захода
+        if not ATC_Utils.canPerformVisualApproach(serviceCoord) then
+            self:sendMessage(object, callsign .. ", невозможно выполнить визуальный заход. Погодные условия не позволяют.")
+            return true
+        end
+        
+        -- Проверка дистанции для визуального захода
+        local runwayData = self.runways[self.activeRunway]
+        if not ATC_Utils.isInVisualApproachRange(object, runwayData) then
+            self:sendMessage(object, callsign .. ", невозможно выполнить визуальный заход. Вы слишком далеко от аэродрома.")
+            return true
+        end
+        
+        -- Проверка состояния ВПП
+        if not self.runwayStatus.isClear then
+            -- Если ВПП занята, разрешаем только заход
+            self:sendMessage(object, callsign .. ", ВПП " .. self.activeRunway .. " занята. Разрешаю визуальный заход, посадку дополнительно.")
+            table.insert(self.runwayStatus.pendingLandings, object:GetID())
+            return true
+        end
+        
+        -- Получение положения ВПП на "часах"
+        local clockPosition = ATC_Utils.getRunwayClockPosition(object, runwayData)
+        
+        -- Формирование ответа
+        local response = callsign .. ", разрешаю визуальный заход и посадку на ВПП " .. self.activeRunway .. ". " .. clockPosition
+        
+        -- Отправка ответа
+        self:sendMessage(object, response)
+        
+        -- Устанавливаем статус ВПП как занятой
+        self.runwayStatus.isClear = false
+        
+        return true
+    end
+    
+    -- Обработчик доклада "полосу наблюдаю"
+    tower.handleRunwayInSight = function(self, object)
+        if not object then
+            return false
+        end
+        
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
+        -- Получение позывного объекта
+        local callsign = object:getCallsign() or "Aircraft"
+        
+        -- Определение фазы полета
+        local flightPhase = ATC_Utils.getFlightPhase(object)
+        
+        -- Если объект на земле, отказываем
+        if flightPhase == "GROUND" then
+            self:sendMessage(object, callsign .. ", вас понял.")
+            return true
+        end
+        
+        -- Проверка состояния ВПП
+        if not self.runwayStatus.isClear then
+            -- Если ВПП занята, разрешаем только заход
+            self:sendMessage(object, callsign .. ", вас понял. ВПП " .. self.activeRunway .. " занята. Посадку дополнительно.")
+            table.insert(self.runwayStatus.pendingLandings, object:GetID())
+            return true
+        end
+        
+        -- Формирование ответа
+        local response = callsign .. ", вас понял. Разрешаю посадку на ВПП " .. self.activeRunway .. "."
+        
+        -- Отправка ответа
+        self:sendMessage(object, response)
+        
+        -- Устанавливаем статус ВПП как занятой
+        self.runwayStatus.isClear = false
+        
         return true
     end
     
@@ -357,6 +780,14 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
             return true
         end
         
+        -- Проверка состояния ВПП
+        if not self.runwayStatus.isClear then
+            -- Если ВПП занята, добавляем в очередь на взлет
+            self:sendMessage(object, callsign .. ", ВПП " .. self.activeRunway .. " занята. Ожидайте разрешения на взлет.")
+            table.insert(self.runwayStatus.pendingTakeoffs, object:GetID())
+            return true
+        end
+        
         -- Обновление активной ВПП
         self:updateActiveRunway()
         
@@ -375,6 +806,18 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         
         -- Отправка ответа
         self:sendMessage(object, response)
+        
+        -- Устанавливаем статус ВПП как занятой
+        self.runwayStatus.isClear = false
+        
+        -- Запускаем таймер для автоматического освобождения ВПП через 2 минуты
+        SCHEDULER:New(nil, 
+            function() 
+                self:handleRunwayClearTimeout(object:GetID()) 
+            end, 
+            {}, 
+            120 -- 2 минуты
+        )
         
         return true
     end
@@ -402,6 +845,14 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
             return true
         end
         
+        -- Проверка состояния ВПП
+        if not self.runwayStatus.isClear then
+            -- Если ВПП занята, разрешаем только заход
+            self:sendMessage(object, callsign .. ", ВПП " .. self.activeRunway .. " занята. Разрешаю заход, посадку дополнительно.")
+            table.insert(self.runwayStatus.pendingLandings, object:GetID())
+            return true
+        end
+        
         -- Обновление активной ВПП
         self:updateActiveRunway()
         
@@ -424,12 +875,112 @@ ATC_Tower.new = function(icao, callsign, frequency, range, coalition)
         end
         
         -- Формирование ответа
-        local response = callsign .. ", " .. windInfo .. trafficInfo .. "Разрешаю заход на ВПП " .. self.activeRunway .. "."
+        local response = callsign .. ", " .. windInfo .. trafficInfo .. "Разрешаю заход и посадку на ВПП " .. self.activeRunway .. "."
         
         -- Отправка ответа
         self:sendMessage(object, response)
         
+        -- Устанавливаем статус ВПП как занятой
+        self.runwayStatus.isClear = false
+        
         return true
+    end
+    
+    -- Обработчик доклада "полосу освободил"
+    tower.handleRunwayClear = function(self, object)
+        if not object then
+            return false
+        end
+        
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
+        -- Получение позывного объекта
+        local callsign = object:getCallsign() or "Aircraft"
+        
+        -- Формирование ответа
+        local response = callsign .. ", вас понял, полоса свободна."
+        
+        -- Отправка ответа
+        self:sendMessage(object, response)
+        
+        -- Устанавливаем статус ВПП как свободной
+        self.runwayStatus.isClear = true
+        
+        -- Обработка ожидающих запросов
+        self:processWaitingRequests()
+        
+        return true
+    end
+    
+    -- Обработчик таймаута освобождения ВПП
+    tower.handleRunwayClearTimeout = function(self, objectId)
+        -- Проверяем, что ВПП все еще занята
+        if not self.runwayStatus.isClear then
+            -- Устанавливаем статус ВПП как свободной
+            self.runwayStatus.isClear = true
+            
+            -- Обработка ожидающих запросов
+            self:processWaitingRequests()
+            
+            self:log("ВПП автоматически освобождена по таймауту")
+        end
+    end
+    
+    -- Обработка ожидающих запросов
+    tower.processWaitingRequests = function(self)
+        -- Сначала обрабатываем запросы на посадку
+        if #self.runwayStatus.pendingLandings > 0 then
+            local objectId = table.remove(self.runwayStatus.pendingLandings, 1)
+            local object = nil
+            
+            -- Поиск объекта по ID
+            for id, data in pairs(self.trackedObjects) do
+                if id == objectId and data.object:IsAlive() then
+                    object = data.object
+                    break
+                end
+            end
+            
+            if object then
+                local callsign = object:getCallsign() or "Aircraft"
+                self:sendMessage(object, callsign .. ", ВПП " .. self.activeRunway .. " свободна. Разрешаю посадку.")
+                
+                -- Устанавливаем статус ВПП как занятой
+                self.runwayStatus.isClear = false
+            end
+        -- Затем обрабатываем запросы на взлет
+        elseif #self.runwayStatus.pendingTakeoffs > 0 then
+            local objectId = table.remove(self.runwayStatus.pendingTakeoffs, 1)
+            local object = nil
+            
+            -- Поиск объекта по ID
+            for id, data in pairs(self.trackedObjects) do
+                if id == objectId and data.object:IsAlive() then
+                    object = data.object
+                    break
+                end
+            end
+            
+            if object then
+                local callsign = object:getCallsign() or "Aircraft"
+                self:sendMessage(object, callsign .. ", ВПП " .. self.activeRunway .. " свободна. Разрешаю взлет.")
+                
+                -- Устанавливаем статус ВПП как занятой
+                self.runwayStatus.isClear = false
+                
+                -- Запускаем таймер для автоматического освобождения ВПП через 2 минуты
+                SCHEDULER:New(nil, 
+                    function() 
+                        self:handleRunwayClearTimeout(object:GetID()) 
+                    end, 
+                    {}, 
+                    120 -- 2 минуты
+                )
+            end
+        end
     end
     
     -- Инициализация службы

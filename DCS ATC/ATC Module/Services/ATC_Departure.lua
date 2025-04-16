@@ -1,7 +1,7 @@
 --[[
 ATC_Departure.lua
 Модуль службы Departure для универсального ATC модуля
-Автор: Andrey Iskrich
+Автор: Manus AI
 Дата: Апрель 2025
 --]]
 
@@ -14,6 +14,10 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
     
     -- Добавление ссылки на Navigraph для этого аэропорта
     departure.navigraph = nil
+    
+    -- Добавление меню F10
+    departure.menu = nil
+    departure.menuItems = {}
     
     -- Переопределение инициализации
     local baseInit = departure.init
@@ -37,6 +41,9 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
         
         -- Определение активной ВПП
         self:updateActiveRunway()
+        
+        -- Инициализация меню F10
+        self:initMenu()
         
         return true
     end
@@ -72,7 +79,18 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
         baseStart(self)
         
         -- Запуск планировщика для регулярного обновления активной ВПП
-        self.runwayScheduler = mist.scheduleFunction(function() self:updateActiveRunway() end, {}, timer.getTime() + 300, 300)
+        -- Используем MOOSE SCHEDULER вместо mist.scheduleFunction
+        self.runwayScheduler = SCHEDULER:New(nil, 
+            function() 
+                self:updateActiveRunway() 
+            end, 
+            {}, 
+            5, -- начальная задержка 5 секунд
+            300 -- повторять каждые 300 секунд (5 минут)
+        )
+        
+        -- Активация меню F10
+        self:activateMenu()
         
         return true
     end
@@ -84,11 +102,157 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
         
         -- Остановка планировщика обновления ВПП
         if self.runwayScheduler then
-            mist.removeFunction(self.runwayScheduler)
+            self.runwayScheduler:Stop()
             self.runwayScheduler = nil
         end
         
+        -- Деактивация меню F10
+        self:deactivateMenu()
+        
         return true
+    end
+    
+    -- Инициализация меню F10
+    departure.initMenu = function(self)
+        -- Создаем меню только если указана коалиция
+        if self.coalition then
+            -- Создаем корневое меню для службы
+            self.menu = MENU_COALITION:New(self.coalition, self.callsign)
+            
+            -- Добавляем пункты меню
+            self:addMenuItems()
+        end
+    end
+    
+    -- Добавление пунктов меню F10
+    departure.addMenuItems = function(self)
+        if not self.menu then
+            return
+        end
+        
+        -- Доклад о выходе на связь
+        self.menuItems.reportOnFrequency = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Вышел на связь",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleOnFrequency(unit)
+                end
+            end
+        )
+        
+        -- Доклад о выходе из зоны ответственности
+        self.menuItems.reportLeavingAirspace = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Выхожу из зоны ответственности",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleLeavingAirspace(unit)
+                end
+            end
+        )
+        
+        -- Запрос информации о погоде
+        self.menuItems.requestWeather = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Запросить погоду",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    local serviceCoord = self:getCoordinate()
+                    local weather = ATC_Utils.getWeatherInfo(serviceCoord)
+                    local weatherInfo = ATC_Utils.formatWeatherInfo(weather)
+                    self:sendMessage(unit, weatherInfo)
+                end
+            end
+        )
+        
+        -- Запрос информации о SID
+        self.menuItems.requestSID = MENU_COALITION_COMMAND:New(
+            self.coalition,
+            "Запросить SID",
+            self.menu,
+            function(group)
+                local unit = group:GetUnit(1)
+                if unit and unit:IsAlive() then
+                    self:handleSIDRequest(unit)
+                end
+            end
+        )
+        
+        -- Подменю выбора SID
+        self.menuItems.sidMenu = MENU_COALITION:New(
+            self.coalition,
+            "Выбрать SID",
+            self.menu
+        )
+        
+        -- Динамически добавляем SID процедуры для активной ВПП
+        self:updateSIDMenu()
+    end
+    
+    -- Обновление меню SID
+    departure.updateSIDMenu = function(self)
+        if not self.menuItems.sidMenu then
+            return
+        end
+        
+        -- Удаляем существующие пункты меню SID
+        self.menuItems.sidMenu:RemoveSubMenus()
+        
+        -- Если нет активной ВПП, выходим
+        if not self.activeRunway then
+            return
+        end
+        
+        -- Получаем SID процедуры для активной ВПП
+        local sids = {}
+        
+        -- Если есть ссылка на Navigraph, используем её
+        if self.navigraph then
+            local ATC_Procedures = require("Scripts.ATC_Module.Core.ATC_Procedures")
+            sids = ATC_Procedures.getSIDForRunway(self.navigraph, self.activeRunway)
+        else
+            -- Иначе используем глобальный Procedures (для обратной совместимости)
+            sids = ATC_Procedures.getSIDForRunway(self.activeRunway)
+        end
+        
+        -- Добавляем пункты меню для каждой SID процедуры
+        for _, sid in ipairs(sids) do
+            MENU_COALITION_COMMAND:New(
+                self.coalition,
+                sid.name,
+                self.menuItems.sidMenu,
+                function(group)
+                    local unit = group:GetUnit(1)
+                    if unit and unit:IsAlive() then
+                        self:handleSIDSelection(unit, sid)
+                    end
+                end
+            )
+        end
+    end
+    
+    -- Активация меню F10
+    departure.activateMenu = function(self)
+        if self.menu then
+            self.menu:Set()
+            
+            -- Обновляем меню SID
+            self:updateSIDMenu()
+        end
+    end
+    
+    -- Деактивация меню F10
+    departure.deactivateMenu = function(self)
+        if self.menu then
+            self.menu:Remove()
+        end
     end
     
     -- Обработчик нового объекта в зоне ответственности
@@ -176,8 +340,8 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
         end
     end
     
-    -- Обработчик запроса на взлет
-    departure.handleTakeoffRequest = function(self, object)
+    -- Обработчик доклада о выходе на связь
+    departure.handleOnFrequency = function(self, object)
         if not object then
             return false
         end
@@ -193,33 +357,19 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
         -- Определение фазы полета
         local flightPhase = ATC_Utils.getFlightPhase(object)
         
-        -- Если объект не на земле, отказываем
-        if flightPhase ~= "GROUND" then
-            self:sendMessage(object, callsign .. ", невозможно выполнить запрос на взлет. Вы не на земле.")
+        -- Если объект на земле, отказываем
+        if flightPhase == "GROUND" then
+            self:sendMessage(object, callsign .. ", вас понял. Для запроса взлета используйте службу Tower.")
             return true
         end
         
-        -- Обновление активной ВПП
-        self:updateActiveRunway()
-        
-        -- Получение данных о погоде
-        local serviceCoord = self:getCoordinate()
-        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
-        
-        -- Формирование информации о ветре
-        local windInfo = ""
-        if weather then
-            windInfo = "Ветер " .. ATC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов. "
-        end
-        
         -- Формирование ответа
-        local response = callsign .. ", " .. windInfo .. "Разрешаю взлет с ВПП " .. self.activeRunway .. "."
+        local response = callsign .. ", вас понял. Продолжайте по схеме."
         
         -- Отправка ответа
         self:sendMessage(object, response)
         
         -- Получение рекомендуемой SID процедуры
-        local objectCoord = object:GetCoordinate()
         local objectHeading = ATC_Utils.getObjectHeading(object)
         
         local recommendedSID = nil
@@ -236,8 +386,7 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
         if recommendedSID then
             -- Отправка информации о SID процедуре
             local sidInfo = ATC_Procedures.getProcedureInfo(recommendedSID.data, "SID")
-            self:sendMessage(object, "После взлета следуйте по SID " .. recommendedSID.name .. ".")
-            self:sendMessage(object, sidInfo)
+            self:sendMessage(object, "Следуйте по SID " .. recommendedSID.name .. ".")
             
             -- Начало отслеживания выполнения процедуры
             ATC_MonitoringManager.trackObject(object, recommendedSID.data, "SID", self)
@@ -246,8 +395,8 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
         return true
     end
     
-    -- Обработчик доклада о готовности к взлету
-    departure.handleReadyForTakeoff = function(self, object)
+    -- Обработчик запроса на SID
+    departure.handleSIDRequest = function(self, object)
         if not object then
             return false
         end
@@ -263,30 +412,68 @@ ATC_Departure.new = function(icao, callsign, frequency, range, coalition)
         -- Определение фазы полета
         local flightPhase = ATC_Utils.getFlightPhase(object)
         
-        -- Если объект не на земле, отказываем
-        if flightPhase ~= "GROUND" then
-            self:sendMessage(object, callsign .. ", невозможно выполнить запрос. Вы не на земле.")
+        -- Если объект на земле, отказываем
+        if flightPhase == "GROUND" then
+            self:sendMessage(object, callsign .. ", невозможно выполнить запрос. Вы на земле.")
             return true
         end
         
-        -- Обновление активной ВПП
-        self:updateActiveRunway()
+        -- Получение рекомендуемой SID процедуры
+        local objectHeading = ATC_Utils.getObjectHeading(object)
         
-        -- Получение данных о погоде
-        local serviceCoord = self:getCoordinate()
-        local weather = ATC_Utils.getWeatherInfo(serviceCoord)
+        local recommendedSID = nil
         
-        -- Формирование информации о ветре
-        local windInfo = ""
-        if weather then
-            windInfo = "Ветер " .. ATC_Utils.formatHeading(weather.windDirection) .. " градусов, " .. math.floor(weather.windSpeed) .. " узлов. "
+        -- Если есть ссылка на Navigraph, используем её
+        if self.navigraph then
+            local ATC_Procedures = require("Scripts.ATC_Module.Core.ATC_Procedures")
+            recommendedSID = ATC_Procedures.getRecommendedSID(self.navigraph, self.activeRunway, objectHeading)
+        else
+            -- Иначе используем глобальный Procedures (для обратной совместимости)
+            recommendedSID = ATC_Procedures.getRecommendedSID(self.activeRunway, objectHeading)
         end
         
-        -- Формирование ответа
-        local response = callsign .. ", " .. windInfo .. "Разрешаю взлет с ВПП " .. self.activeRunway .. "."
+        if recommendedSID then
+            -- Отправка информации о SID процедуре
+            local sidInfo = ATC_Procedures.getProcedureInfo(recommendedSID.data, "SID")
+            self:sendMessage(object, "Рекомендуемый SID: " .. recommendedSID.name)
+            self:sendMessage(object, sidInfo)
+        else
+            self:sendMessage(object, "Нет доступных SID процедур для вашего направления.")
+        end
         
-        -- Отправка ответа
-        self:sendMessage(object, response)
+        return true
+    end
+    
+    -- Обработчик выбора SID процедуры
+    departure.handleSIDSelection = function(self, object, sid)
+        if not object or not sid then
+            return false
+        end
+        
+        -- Проверка коалиции объекта
+        if not self:isObjectInCoalition(object) then
+            return false
+        end
+        
+        -- Получение позывного объекта
+        local callsign = object:getCallsign() or "Aircraft"
+        
+        -- Определение фазы полета
+        local flightPhase = ATC_Utils.getFlightPhase(object)
+        
+        -- Если объект на земле, отказываем
+        if flightPhase == "GROUND" then
+            self:sendMessage(object, callsign .. ", невозможно выполнить запрос. Вы на земле.")
+            return true
+        end
+        
+        -- Отправка информации о SID процедуре
+        local sidInfo = ATC_Procedures.getProcedureInfo(sid.data, "SID")
+        self:sendMessage(object, callsign .. ", следуйте по SID " .. sid.name .. ".")
+        self:sendMessage(object, sidInfo)
+        
+        -- Начало отслеживания выполнения процедуры
+        ATC_MonitoringManager.trackObject(object, sid.data, "SID", self)
         
         return true
     end

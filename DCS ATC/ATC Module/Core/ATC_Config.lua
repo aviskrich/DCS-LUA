@@ -1,7 +1,7 @@
 --[[
 ATC_Config.lua
 Конфигурационный файл для универсального ATC модуля
-Автор: Andrey Iskrich
+Автор: Manus AI
 Дата: Апрель 2025
 --]]
 
@@ -13,31 +13,31 @@ ATC_Config = {
     -- Настройки аэропортов
     AIRPORTS = {
         {
-            ICAO = "URMT",  -- ICAO код аэропорта
+            ICAO = "URSS",  -- ICAO код аэропорта
             COALITION = coalition.side.BLUE,  -- Коалиция (BLUE, RED или nil для обеих)
             ENABLED = true,  -- Включен ли аэропорт
             USE_NAVIGRAPH_DATA = true,  -- Использовать данные Navigraph
-            NAVIGRAPH_DATA_PATH = lfs.writedir() .. "Scripts/ATC_Module/Data/URMT_MOOSE.lua",  -- Путь к данным Navigraph
-            FALLBACK_TO_EMBEDDED = true,  -- Использовать встроенные данные при отсутствии Navigraph
+            NAVIGRAPH_DATA_PATH = project_path .. "Data/URSS_MOOSE.lua",  -- Путь к данным Navigraph
+            FALLBACK_TO_EMBEDDED = false,  -- Использовать встроенные данные при отсутствии Navigraph
             
             -- Настройки служб ATC для этого аэропорта
             ATC = {
                 TOWER = {
                     ENABLED = true,
-                    FREQUENCY = nil,  -- nil означает использование данных из файла аэропорта
-                    CALLSIGN = nil,  -- nil означает использование "ICAO Tower" (например, "URMT Tower")
+                    FREQUENCY = 118.0,  -- nil означает использование данных из файла аэропорта
+                    CALLSIGN = 'Sochi Tower',  -- nil означает использование "ICAO Tower" (например, "URMT Tower")
                     RANGE = 30  -- Дальность в морских милях
                 },
                 APPROACH = {
                     ENABLED = true,
-                    FREQUENCY = nil,
-                    CALLSIGN = nil,
+                    FREQUENCY = 121.0,
+                    CALLSIGN = 'Sochi Approach',
                     RANGE = 50
                 },
                 DEPARTURE = {
                     ENABLED = true,
-                    FREQUENCY = nil,
-                    CALLSIGN = nil,
+                    FREQUENCY = 125.0,
+                    CALLSIGN = 'Sochi Departure',
                     RANGE = 50
                 }
             }
@@ -46,28 +46,28 @@ ATC_Config = {
             ICAO = "UUWW",  -- ICAO код аэропорта (Внуково)
             COALITION = coalition.side.RED,  -- Коалиция (BLUE, RED или nil для обеих)
             ENABLED = true,  -- Включен ли аэропорт
-            USE_NAVIGRAPH_DATA = true,  -- Использовать данные Navigraph
-            NAVIGRAPH_DATA_PATH = lfs.writedir() .. "Scripts/ATC_Module/Data/UUWW_MOOSE.lua",  -- Путь к данным Navigraph
+            USE_NAVIGRAPH_DATA = false,  -- Использовать данные Navigraph
+            NAVIGRAPH_DATA_PATH = project_path .. "Data/URKK_MOOSE.lua",  -- Путь к данным Navigraph
             FALLBACK_TO_EMBEDDED = true,  -- Использовать встроенные данные при отсутствии Navigraph
             
             -- Настройки служб ATC для этого аэропорта
             ATC = {
                 TOWER = {
                     ENABLED = true,
-                    FREQUENCY = nil,
-                    CALLSIGN = nil,
+                    FREQUENCY = 118.0,
+                    CALLSIGN = 'Krasnodar Tower',
                     RANGE = 30
                 },
                 APPROACH = {
                     ENABLED = true,
-                    FREQUENCY = nil,
-                    CALLSIGN = nil,
+                    FREQUENCY = 121.0,
+                    CALLSIGN = 'Krasnodar Approach',
                     RANGE = 50
                 },
                 DEPARTURE = {
                     ENABLED = true,
-                    FREQUENCY = nil,
-                    CALLSIGN = nil,
+                    FREQUENCY = 125.0,
+                    CALLSIGN = 'Krasnodar Departure',
                     RANGE = 50
                 }
             }

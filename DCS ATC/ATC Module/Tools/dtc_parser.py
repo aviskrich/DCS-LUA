@@ -724,24 +724,84 @@ class DTCParser:
         """Парсинг записи с информацией о ВПП"""
         try:
             # Формат: RICAO,RWY,WIDTH,LENGTH,LAT,LON,HEADING
-            parts = line.split(',')
-            if len(parts) >= 7:
-                runway = parts[1].strip()
-                width = float(parts[2].strip())
-                length = float(parts[3].strip())
-                lat = float(parts[4].strip())
-                lon = float(parts[5].strip())
-                heading = float(parts[6].strip())
+            # Проверяем, что строка начинается с 'RWY:'
+            if not line.startswith('RWY:'):
+                return
+            # Разбиваем строку на блоки, разделенные ';'
+            blocks = line.split(';')
+            
+            # Первый блок содержит информацию о ВПП
+            runway_info = blocks[0].split(',')
+            
+            # Извлекаем идентификатор ВПП из первого элемента (убираем 'RWY:')
+            runway_id = runway_info[0].replace('RWY:', '').strip()
+            # Получаем курс ВПП из идентификатора
+            heading = None
+            if runway_id and len(runway_id.strip()) >= 2:
+                # Извлекаем числовую часть из идентификатора ВПП (например, из "RW06" получаем "06")
+                runway_number = ''.join(filter(str.isdigit, runway_id.strip()))
+                if runway_number:
+                    # Преобразуем в число и умножаем на 10 для получения магнитного курса
+                    heading = int(runway_number) * 10
+                    if self.debug:
+                        logger.debug(f"Получен курс ВПП {runway_id}: {heading}°")
+            
+            # Получаем длину ВПП
+            runway_length = float(runway_info[1].strip()) if runway_info[1].strip() else 0
+            
+            # Получаем ширину ВПП
+            runway_width = float(runway_info[2].strip()) if runway_info[2].strip() else 0
+            
+            # Получаем высоту порога ВПП (если указана)
+            threshold_elevation = float(runway_info[3].strip()) if runway_info[3].strip() else 0
+            
+            # Получаем навигационную систему (если указана)
+            nav_system = runway_info[5].strip() if len(runway_info) > 5 and runway_info[5].strip() else None
+            
+            # Получаем индикатор направления (если указан)
+            direction_indicator = int(runway_info[6].strip()) if len(runway_info) > 6 and runway_info[6].strip() else None
+            
+            # Если есть второй блок, извлекаем координаты
+            if len(blocks) > 1 and blocks[1]:
+                coord_info = blocks[1].split(',')
                 
+                # Парсим широту (формат: N43260357 -> 43°26'03.57"N)
+                lat_str = coord_info[0].strip()
+                if lat_str:
+                    lat_deg = float(lat_str[1:3])
+                    lat_min = float(lat_str[3:5])
+                    lat_sec = float(lat_str[5:7] + '.' + lat_str[7:])
+                    lat = lat_deg + lat_min/60 + lat_sec/3600
+                    if lat_str[0] == 'S':
+                        lat = -lat
+                
+                # Парсим долготу (формат: E039564046 -> 39°56'40.46"E)
+                lon_str = coord_info[1].strip()
+                if lon_str:
+                    lon_deg = float(lon_str[1:4])
+                    lon_min = float(lon_str[4:6])
+                    lon_sec = float(lon_str[6:8] + '.' + lon_str[8:])
+                    lon = lon_deg + lon_min/60 + lon_sec/3600
+                    if lon_str[0] == 'W':
+                        lon = -lon
+                
+                # Получаем смещение точки касания (если указано)
+                displaced_threshold = float(coord_info[2].strip()) if len(coord_info) > 2 and coord_info[2].strip() else 0
+                
+                if self.debug:
+                    logger.debug(f"Дополнительная информация о ВПП {runway_id}: Высота порога: {threshold_elevation}, "
+                                f"Нав. система: {nav_system}, Направление: {direction_indicator}, "
+                                f"Координаты: {lat},{lon}, Смещение: {displaced_threshold}")
+                  
                 # Расчет координат конца ВПП
                 import math
-                end_lat = lat + (length / 6076.12) * math.cos(math.radians(heading))
-                end_lon = lon + (length / 6076.12) * math.sin(math.radians(heading)) / math.cos(math.radians(lat))
+                end_lat = lat + (runway_length / 6076.12) * math.cos(math.radians(heading))
+                end_lon = lon + (runway_length / 6076.12) * math.sin(math.radians(heading)) / math.cos(math.radians(lat))
                 
-                self.airports[airport_icao]['runways'][runway] = {
+                self.airports[airport_icao]['runways'][runway_id] = {
                     'heading': heading,
-                    'length': length,
-                    'width': width,
+                    'length': runway_length,
+                    'width': runway_width,
                     'threshold': {
                         'lat': lat,
                         'lon': lon
@@ -753,7 +813,7 @@ class DTCParser:
                 }
                 
                 if self.debug:
-                    logger.debug(f"ВПП {runway} аэропорта {airport_icao}: Ширина: {width}, Длина: {length}, Порог: {lat},{lon}, Курс: {heading}")
+                    logger.debug(f"ВПП {runway_id} аэропорта {airport_icao}: Ширина: {runway_width}, Длина: {runway_length}, Порог: {lat},{lon}, Курс: {heading}")
         
         except Exception as e:
             logger.warning(f"Ошибка при парсинге информации о ВПП аэропорта {airport_icao}: {str(e)}")
@@ -1096,8 +1156,8 @@ class DTCParser:
                         f.write(f"            heading = {data['heading']},\n")
                         f.write(f"            length = {data['length']},\n")
                         f.write(f"            width = {data['width']},\n")
-                        f.write(f"            threshold = {{ lat = {data['threshold']['lat']}, lon = {data['threshold']['lon']} }},\n")
-                        f.write(f"            end = {{ lat = {data['end']['lat']}, lon = {data['end']['lon']} }}\n")
+                        f.write(f"            rw_threshold = {{ lat = {data['threshold']['lat']}, lon = {data['threshold']['lon']} }},\n")
+                        f.write(f"            rw_end = {{ lat = {data['end']['lat']}, lon = {data['end']['lon']} }}\n")
                         f.write("        },\n")
                     f.write("    },\n\n")
                     
@@ -1148,13 +1208,13 @@ class DTCParser:
                     f.write("    APPROACH = {\n")
                     for name, data in airport_data['APPROACH'].items():
                         f.write(f"        [\"{name}\"] = {{\n")
-                        f.write(f"            transition = \"{data['transition']}\",\n")
+                        # f.write(f"            transition = \"{data['transition']}\",\n")
                         f.write(f"            name = \"{data['name']}\",\n")
                         f.write(f"            type = \"{data['type']}\",\n")
                         f.write(f"            runway = \"{data['runway']}\",\n")
                         f.write("            waypoints = {\n")
                         for wp in data['waypoints']:
-                            f.write(f"                {{ name = \"{wp['name']}\", type = \"{wp['type']}\"")
+                            f.write(f"                {{ name = \"{wp['name']}\", transition = \"{wp['transition']}\", type = \"{wp['type']}\"")
                             if 'altitude_min' in wp:
                                 f.write(f", altitude_min = {wp['altitude_min']}")
                             if 'altitude_max' in wp:
