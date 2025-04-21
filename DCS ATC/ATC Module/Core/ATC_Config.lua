@@ -8,7 +8,7 @@ ATC_Config.lua
 ATC_Config = {
     -- Общие настройки
     DEBUG = true,
-    VERBOSE_LOGGING = false,
+    VERBOSE_LOGGING = true,
     
     -- Настройки аэропортов
     AIRPORTS = {
@@ -100,7 +100,7 @@ ATC_Config = {
     
     -- Настройки производительности
     PERFORMANCE = {
-        DYNAMIC_ACTIVATION = true,  -- Динамическая активация аэропортов при приближении игроков
+        DYNAMIC_ACTIVATION = false,  -- Динамическая активация аэропортов при приближении игроков
         ACTIVATION_RANGE = 100,  -- Дальность активации в морских милях
         UPDATE_INTERVAL = 10  -- Интервал обновления в секундах
     }

@@ -172,7 +172,7 @@ ATC_AirportManager.initAirportServices = function(airport)
         local towerRange = atcConfig.TOWER.RANGE
         
         -- local ATC_Tower = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Tower.lua")
-        local ATC_Tower = dofile(ATC.project_path .. "Services/ATC_Tower.lua")
+        local ATC_Tower = dofile(project_path .. "Services/ATC_Tower.lua")
         airport.tower = ATC_Tower.new(icao, towerCallsign, towerFrequency, towerRange, coalition)
         airport.tower.navigraph = airport.navigraph
         airport.tower:start()
@@ -187,7 +187,7 @@ ATC_AirportManager.initAirportServices = function(airport)
         local approachRange = atcConfig.APPROACH.RANGE
         
         -- local ATC_Approach = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Approach.lua")
-        local ATC_Approach = dofile(ATC.project_path .. "Services/ATC_Approach.lua")
+        local ATC_Approach = dofile(project_path .. "Services/ATC_Approach.lua")
         airport.approach = ATC_Approach.new(icao, approachCallsign, approachFrequency, approachRange, coalition)
         airport.approach.navigraph = airport.navigraph
         airport.approach:start()
@@ -202,7 +202,7 @@ ATC_AirportManager.initAirportServices = function(airport)
         local departureRange = atcConfig.DEPARTURE.RANGE
         
         -- local ATC_Departure = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Departure.lua")
-        local ATC_Departure = dofile(ATC.project_path .. "Services/ATC_Departure.lua")
+        local ATC_Departure = dofile(project_path .. "Services/ATC_Departure.lua")
         airport.departure = ATC_Departure.new(icao, departureCallsign, departureFrequency, departureRange, coalition)
         airport.departure.navigraph = airport.navigraph
         airport.departure:start()
@@ -233,7 +233,7 @@ ATC_AirportManager.initAirportMenu = function(airport)
     
     -- Загрузка модуля меню
     -- local ATC_Menu = dofile(lfs.writedir() .. "Scripts/ATC_Module/Services/ATC_Menu.lua")
-    local ATC_Menu = dofile(ATC.project_path .. "Services/ATC_Menu.lua")
+    local ATC_Menu = dofile(project_path .. "Services/ATC_Menu.lua")
     
     -- Создание меню с учетом коалиции
     airport.menu = ATC_Menu.new(menuName, coalition)
@@ -304,8 +304,8 @@ ATC_AirportManager.startDynamicActivation = function()
     
     ATC_AirportManager.log("Запуск планировщика динамической активации аэропортов")
     
-    local interval = ATC_Config.PERFORMANCE.UPDATE_INTERVAL or 10
-    ATC_AirportManager.scheduler = mist.scheduleFunction(ATC_AirportManager.updateAirportActivation, {}, timer.getTime() + interval, interval)
+    local interval = ATC_Config.PERFORMANCE.UPDATE_INTERVAL or 10    
+    ATC_AirportManager.scheduler = SCHEDULER:New(self, ATC_AirportManager.updateAirportActivation, {}, 0, interval)
 end
 
 -- Остановка планировщика динамической активации
@@ -316,7 +316,7 @@ ATC_AirportManager.stopDynamicActivation = function()
     
     ATC_AirportManager.log("Остановка планировщика динамической активации аэропортов")
     
-    mist.removeFunction(ATC_AirportManager.scheduler)
+    ATC_AirportManager.scheduler:Stop()
     ATC_AirportManager.scheduler = nil
 end
 

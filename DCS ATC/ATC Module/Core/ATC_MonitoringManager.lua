@@ -57,7 +57,7 @@ ATC_MonitoringManager.startScheduler = function()
     ATC_MonitoringManager.log("Запуск планировщика мониторинга")
     
     -- Создание планировщика с интервалом 5 секунд
-    mist.scheduleFunction(ATC_MonitoringManager.checkAllDeviations, {}, timer.getTime() + 5, 5)
+    SCHEDULER:New(self, ATC_MonitoringManager.checkAllDeviations, {}, 0, 5)
 end
 
 -- Добавление объекта для отслеживания
