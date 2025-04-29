@@ -397,7 +397,7 @@ function RestartMission()
     end):Start(10)
 end
 
-function SetZoneRadius(radius)
+function SetZoneRadius(radius, isShowMessage)
     SATAC_Zone_Radius = radius
     
     -- Обновляем радиус для всех зон
@@ -409,7 +409,9 @@ function SetZoneRadius(radius)
     -- Перерисовываем активную зону
     DrawActiveZone()
     
-    MESSAGE:New("ATTACK: SATAC zone radius set to ".. radius .." nautical miles.", 10):ToAll()
+    if isShowMessage then
+        MESSAGE:New("ATTACK: SATAC zone radius set to ".. radius .." nautical miles.", 10):ToAll()
+    end
 end
 
 -- Функция для случайного выбора активной зоны
@@ -466,13 +468,31 @@ function SelectRandomZone()
 end
 
 function StartShrinkZone()
-    local defaultRoundInSec = 20*60
+    local shrinkDurationSec = 20 * 60 -- 20 минут
+    local finalRadius = 2.5 -- миль
+    local startRadius = SATAC_Zone_Radius
+    local shrinkStep = (startRadius - finalRadius) / shrinkDurationSec
+
     if shrinkScheduler then
-        return
+        shrinkScheduler:Start()
+        env.info("Shrink zone sheduler started")
     else
         shrinkScheduler = SCHEDULER:New(nil, function()
-            SetZoneRadius(SATAC_Zone_Radius - SATAC_Zone_Radius / defaultRoundInSec)
+            if SATAC_Zone_Radius > finalRadius then
+                local newRadius = SATAC_Zone_Radius - shrinkStep
+                if newRadius < finalRadius then
+                    newRadius = finalRadius
+                end
+                SetZoneRadius(newRadius)
+                env.info("Shrink zone radius set to " .. newRadius .. " meters")
+            else
+                -- Остановить таймер, когда достигли минимального радиуса
+                shrinkScheduler:Stop()
+                env.info("Shrink zone stopped")
+            end
+
         end, {}, 0, 1)
+        env.info("Shrink zone sheduler create + started")
     end
 end
 
