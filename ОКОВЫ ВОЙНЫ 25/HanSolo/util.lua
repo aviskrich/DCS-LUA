@@ -274,6 +274,7 @@ CARGOSTATIC = {
       content = {
         { type = "weapons.missiles.Mistral",  count = 4 },
         { type = "weapons.missiles.OH58D_FIM_92",  count = 4 },
+        { type = "weapons.missiles.AGM_114K",  count = 4 },
         { type = "weapons.missiles.P_60",  count = 4 },
         { type = "weapons.missiles.AT_6",  count = 8 },
         { type = "weapons.missiles.HOT3_MBDA",  count = 8 },
