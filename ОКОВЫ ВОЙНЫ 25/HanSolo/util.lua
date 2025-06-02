@@ -1,6 +1,6 @@
 --ВАЖНО!!!!: Не занимать слоты до снятия паузы
 --           Не пересекать зоны между собой
---xyu pizda pizda xiuhhhh
+--xyu pizda pizda xiuhhhh pizd ahan
 
 --Имена зон для захвата
 zoneNames = {
