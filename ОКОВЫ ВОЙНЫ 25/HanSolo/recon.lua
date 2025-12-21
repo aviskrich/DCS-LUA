@@ -12,7 +12,10 @@ Recon = {
 function Recon.SetMarker(eventData)
   --UTILS.PrintTableToLog(eventData)
 
-  if (eventData.TgtUnit and eventData.TgtUnit:GetCoalition()) then
+  if (eventData.TgtUnit 
+      and eventData.TgtUnit:IsExist() 
+      and eventData.TgtUnit:GetCoalition()) then
+    local unitName = eventData.TgtUnit:GetName()
     local coalitionNum = eventData.TgtUnit:GetCoalition()
     local coordinate = eventData.TgtUnit:GetCoordinate()
     local coalitionName = nil
