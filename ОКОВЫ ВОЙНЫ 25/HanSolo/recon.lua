@@ -12,27 +12,30 @@ Recon = {
 function Recon.SetMarker(eventData)
   --UTILS.PrintTableToLog(eventData)
 
-  if (eventData.TgtUnit 
-      and eventData.TgtUnit:IsExist() 
-      and eventData.TgtUnit:GetCoalition()) then
-    local unitName = eventData.TgtUnit:GetName()
-    local coalitionNum = eventData.TgtUnit:GetCoalition()
-    local coordinate = eventData.TgtUnit:GetCoordinate()
-    local coalitionName = nil
-    if coordinate and coalitionNum == coalition.side.RED then
-      coalitionName = "RED"
-      MARKER:New(coordinate, string.format("Юнит коалиции %s под огнем", coalitionName)):ToAll():Remove(Recon.removeMarkerTime)    
-    else
-      coalitionName = "BLUE"
-      MARKER:New(coordinate, string.format("Юнит коалиции %s под огнем", coalitionName)):ToAll():Remove(Recon.removeMarkerTime)    
-    end
-    return true
+  local tgt = eventData and eventData.TgtUnit or nil
+  if tgt ~= nil then
+    local exists = tgt:IsExist()
+    if exists then
+      local coalitionNum = tgt:GetCoalition()
+      if coalitionNum ~= nil then
+        local unitName = tgt:GetName()
+        local coordinate = tgt:GetCoordinate()
+        local coalitionName = nil
+        if coordinate and coalitionNum == coalition.side.RED then
+          coalitionName = "RED"
+          MARKER:New(coordinate, string.format("Юнит %s коалиции %s под огнем", unitName, coalitionName)):ToAll():Remove(Recon.removeMarkerTime)    
+        else
+          coalitionName = "BLUE"
+          MARKER:New(coordinate, string.format("Юнит %s коалиции %s под огнем", unitName, coalitionName)):ToAll():Remove(Recon.removeMarkerTime)    
+        end
+        return true
+      end
   end
-
   return false
 end
 function Recon.UnitEventHandler:OnEventHit(eventData)
-  Recon.SetMarker(eventData)
+  localeventData = eventData
+  Recon.SetMarker(localeventData)
 end
 
 Recon.UnitEventHandler:HandleEvent(EVENTS.Hit, Recon.UnitEventHandler.OnEventHit)
