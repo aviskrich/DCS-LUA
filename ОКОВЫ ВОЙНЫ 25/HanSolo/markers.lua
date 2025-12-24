@@ -13,11 +13,12 @@ local function _SendUnit(unit, course, distance, speed)
   
     -- Set start and end coordinates
     astar:SetStartCoordinate(unitCoord)
-    astar:SetEndCoordinate(unitCoord:Translate(distance*1000, course))
+    -- distance ожидается в километрах (из маркера "move 130/4"), переводим в метры здесь
+    astar:SetEndCoordinate(unitCoord:Translate(distance * 1000, course))
 
-    local boxwidth=distance*2*1000
-    local spacex=distance*0.5
-    local delta=distance/10
+    local boxwidth = distance * 2 * 1000  -- meters
+    local spacex   = distance * 0.5 * 1000 -- meters
+    local delta    = distance / 10 * 1000  -- meters
     
     -- Create a grid of nodes. We only want nodes of surface type water.
     astar:CreateGrid({land.SurfaceType.ROAD, land.SurfaceType.LAND}, boxwidth, spacex, delta, delta, false)
@@ -78,7 +79,7 @@ function markerOpsAmmo:OnAfterMarkChanged(From, Event, To, Text, Keywords, Coord
                 local secPattern = "sec%s+(%d+)"                
                 local secMatch = string.match(Text, secPattern)
                 if secMatch then
-                    seconds = math.min(tonumber(secMatch), 60)
+                    seconds = math.min(tonumber(secMatch) or seconds, 60)
                 end
             end
         end
@@ -117,57 +118,44 @@ end
 
 function markerOpsUnit:OnAfterMarkChanged(From, Event, To, Text, Keywords, Coord, idx, coalition)
     local units = SET_UNIT:New():FilterCoalitions(coalitions[coalition]):FilterOnce()
+
+    -- Диаметр зоны поиска (км -> м). По умолчанию 1 км.
+    local diameter = 1000
+    local diaMatch = string.match(Text or "", "dia%s+(%d+)")
+    if diaMatch then
+      diameter = (tonumber(diaMatch) or 1) * 1000
+    end
+    local radius = diameter / 2
+
+    -- Собираем юниты рядом с маркером.
     local nearbyUnits = {}
-    
-    -- Проверяем, есть ли в тексте маркера параметр "dia" (диаметр)
-    local diameter = 1000 -- значение по умолчанию (1 км)    
-    
-    if Keywords and #Keywords > 0 then
-        for _, keyword in ipairs(Keywords) do
-            -- Ищем значение диаметра с помощью регулярного выражения
-            -- Если в тексте маркера есть параметр "dia", то обновляем радиус поиска
-            if keyword:lower() == "dia" then
-                local diaPattern = "dia%s+(%d+)"                
-                local diaMatch = string.match(Text, diaPattern)
-                if diaMatch then
-                    local diameter = tonumber(diaMatch) * 1000 -- переводим км в метры
-                    for _, unit in pairs(units:GetSet()) do
-                        if unit:GetCoordinate() and Coord:Get2DDistance(unit:GetCoordinate()) <= diameter/2 then
-                            table.insert(nearbyUnits, unit)
-                        end
-                    end
-                end 
-            end
-            if keyword:lower() == "move" then
-                -- Обрабатываем паттерн "unit move 130/4", где 130 - курс, 4 - дальность
-                local headingPattern = "move%s+(%d+)/(%d+)"
-                local heading, distance = string.match(Text, headingPattern)
-
-                if heading then
-                    diameter = 1000 -- переводим км в метры                    
-                    if not distance then
-                        distance = 10
-                    end
-
-                    -- Перебираем все юниты и находим те, что в радиусе radius км от маркера
-                    if #nearbyUnits > 0 then
-                        for _, unit in pairs(nearbyUnits) do
-                            _SendUnit(unit, heading, distance*1000, 500)
-                        end
-                    else
-                        for _, unit in pairs(units:GetSet()) do
-                            local unitCoord = unit:GetCoordinate()
-                            
-                        if unitCoord and Coord:Get2DDistance(unitCoord) <= diameter/2 then                            
-                            _SendUnit(unit, heading, distance*1000, 500)
-                            -- unit:TaskRouteToVec2(unitCoord:Translate(distance, heading):GetVec2(), 500)
-                        end
-                    end
-                end
-            end            
-        end
+    for _, unit in pairs(units:GetSet()) do
+      local unitCoord = unit:GetCoordinate()
+      if unitCoord and Coord:Get2DDistance(unitCoord) <= radius then
+        table.insert(nearbyUnits, unit)
+      end
     end
 
+    -- Движение: "unit move 130/4" (курс/дальность в км).
+    local heading, distanceKm = string.match(Text or "", "move%s+(%d+)/(%d+)")
+    if heading then
+      heading = tonumber(heading)
+      distanceKm = tonumber(distanceKm) or 10
+      local speed = 500
+
+      if #nearbyUnits > 0 then
+        for _, unit in ipairs(nearbyUnits) do
+          _SendUnit(unit, heading, distanceKm, speed)
+        end
+      else
+        for _, unit in pairs(units:GetSet()) do
+          local unitCoord = unit:GetCoordinate()
+          if unitCoord and Coord:Get2DDistance(unitCoord) <= radius then
+            _SendUnit(unit, heading, distanceKm, speed)
+          end
+        end
+      end
+    end
 end
 
 

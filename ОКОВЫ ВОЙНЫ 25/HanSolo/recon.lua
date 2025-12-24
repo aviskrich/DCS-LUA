@@ -21,21 +21,23 @@ function Recon.SetMarker(eventData)
         local unitName = tgt:GetName()
         local coordinate = tgt:GetCoordinate()
         local coalitionName = nil
-        if coordinate and coalitionNum == coalition.side.RED then
-          coalitionName = "RED"
-          MARKER:New(coordinate, string.format("Юнит %s коалиции %s под огнем", unitName, coalitionName)):ToAll():Remove(Recon.removeMarkerTime)    
-        else
-          coalitionName = "BLUE"
-          MARKER:New(coordinate, string.format("Юнит %s коалиции %s под огнем", unitName, coalitionName)):ToAll():Remove(Recon.removeMarkerTime)    
+        if coordinate then
+          if coalitionNum == coalition.side.RED then
+            coalitionName = "RED"
+          else
+            coalitionName = "BLUE"
+          end
+          MARKER:New(coordinate, string.format("Юнит %s коалиции %s под огнем", unitName, coalitionName)):ToAll():Remove(Recon.removeMarkerTime)
+          return true
         end
-        return true
       end
+    end
   end
   return false
 end
 function Recon.UnitEventHandler:OnEventHit(eventData)
-  localeventData = eventData
-  Recon.SetMarker(localeventData)
+  local localEventData = eventData
+  Recon.SetMarker(localEventData)
 end
 
 Recon.UnitEventHandler:HandleEvent(EVENTS.Hit, Recon.UnitEventHandler.OnEventHit)
