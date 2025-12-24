@@ -130,66 +130,6 @@ CARGOSTATIC = {
       value = 3000, -- Вес
       static = true,
       limitedDistanceFromBASE = 150, -- ограничение на расстояние от базы
-    },
-    CRATEFUEL = {
-      name = "FUELRED", -- уникальнео имя
-      spawner = SPAWNSTATIC:NewFromStatic("FUELCARGORED", country.id.CJTF_RED), -- спаунер коробки (точное наименование статика для коробки)
-      nameText = "Топливо", -- Название (для меню)
-      cargoType = "liquid", -- тип груза топливо или амуниция (liquid/ammo)
-      content = { -- содержание груза (тип, количество)
-        { type = STORAGE.Liquid.JETFUEL, count = 3000 }
-      },
-      value = 3000, -- вес коробки
-      static = true,
-    },
-    CRATENAR = {
-      name = "CargoNarRED", -- уникальное имя
-      spawner = SPAWNSTATIC:NewFromStatic("NARCARGORED", country.id.CJTF_RED),
-      nameText = "НАР и cнаряды",
-      cargoType = "ammo", -- тип груза топливо или амуниция в т.ч. борты (liquid/ammo)
-      content = {
-        { type = ENUMS.Storage.weapons.Gazelle.GIAT_M261_APHE,  count = 1 },
-        { type = ENUMS.Storage.weapons.Gazelle.GIAT_M261_HEAP,  count = 1 },
-        { type = ENUMS.Storage.weapons.OH58.MG_M3P500,  count = 1 },
-        { type = ENUMS.Storage.weapons.UH1H.M134_MiniGun_Right,  count = 1 },
-        { type = ENUMS.Storage.weapons.UH1H.M134_MiniGun_Left,  count = 1 },
-        { type = ENUMS.Storage.weapons.UH1H.M60_MG_Left_Door,  count = 1 },
-        { type = ENUMS.Storage.weapons.UH1H.M60_MG_Right_Door,  count = 1 },
-        { type = ENUMS.Storage.weapons.CH47.CH47_PORT_M240H,  count = 1 },
-        { type = ENUMS.Storage.weapons.CH47.CH47_STBD_M240H,  count = 1 },
-        { type = ENUMS.Storage.weapons.CH47.CH47_AFT_M240H,  count = 1 },
-        { type = {4, 15, 46, 170},  count = 2 }, -- Гув
-        { type = {4, 15, 46, 20},  count = 2 },  -- УПК
-        { type = {4, 15, 46, 183},  count = 1 }, -- КОРД
-        { type = {4, 15, 46, 184},  count = 1 }, -- ПКТ
-        { type = "weapons.nurs.HYDRA_70_M151",  count = 40 },
-        { type = "weapons.nurs.HYDRA_70_M257",  count = 20 },
-        { type = "weapons.nurs.HYDRA_70_MK5",  count = 40 },
-        { type = "weapons.nurs.C_8",  count = 40 },
-        { type = "weapons.nurs.C_8OFP2",  count = 40 },
-        { type = "weapons.nurs.C_8OM",  count = 20 },
-        { type = "weapons.nurs.S-24B",  count = 4 },
-        { type = "weapons.nurs.SNEB_TYPE257_H1",  count = 20 },
-        { type = "weapons.nurs.SNEB_TYPE259E_H1",  count = 20 }
-      },
-      value = 3000,
-      static = true,
-    },
-    CRATEMISSLE = {
-      name = "CargoMissleRED", -- уникальное имя
-      spawner = SPAWNSTATIC:NewFromStatic("MISSLECARGORED", country.id.CJTF_RED),
-      nameText = "Ракеты",
-      cargoType = "ammo", -- тип груза топливо или амуниция в т.ч. борты (liquid/ammo)
-      content = {
-        { type = "weapons.missiles.Mistral",  count = 4 },
-        { type = "weapons.missiles.OH58D_FIM_92",  count = 4 },
-        { type = "weapons.missiles.AGM_114K",  count = 4 },
-        { type = "weapons.missiles.P_60",  count = 4 },
-        { type = "weapons.missiles.AT_6",  count = 8 },
-        { type = "weapons.missiles.HOT3_MBDA",  count = 8 },
-      },
-      value = 3000,
-      static = true,
     }
   },
   BLUE = {
@@ -220,67 +160,6 @@ CARGOSTATIC = {
       value = 3000, -- Вес
       static = true,
       limitedDistanceFromBASE = 150, -- ограничение на расстояние от базы
-    },
-    CRATEFUEL = {
-      name = "FUELBLUE", -- уникальнео имя
-      spawner = SPAWNSTATIC:NewFromStatic("FUELCARGOBLUE", country.id.CJTF_BLUE), -- спаунер коробки (точное наименование статика для коробки)
-      nameText = "Топливо", -- Название (для меню)
-      cargoType = "liquid", -- тип груза топливо или амуниция (liquid/ammo)
-      content = { -- содержание груза (тип, количество)
-        { type = STORAGE.Liquid.JETFUEL, count = 3000 }
-      },
-      value = 3000, -- вес коробки
-      static = true,
-    },
-    
-    CRATENAR = {
-      name = "CargoNarBLUE", -- уникальное имя
-      spawner = SPAWNSTATIC:NewFromStatic("NARCARGOBLUE", country.id.CJTF_BLUE),
-      nameText = "НАР и cнаряды",
-      cargoType = "ammo", -- тип груза топливо или амуниция в т.ч. борты (liquid/ammo)
-      content = {
-        { type = ENUMS.Storage.weapons.Gazelle.GIAT_M261_APHE,  count = 1 },
-        { type = ENUMS.Storage.weapons.Gazelle.GIAT_M261_HEAP,  count = 1 },
-        { type = ENUMS.Storage.weapons.OH58.MG_M3P500,  count = 1 },
-        { type = ENUMS.Storage.weapons.UH1H.M134_MiniGun_Right,  count = 1 },
-        { type = ENUMS.Storage.weapons.UH1H.M134_MiniGun_Left,  count = 1 },
-        { type = ENUMS.Storage.weapons.UH1H.M60_MG_Left_Door,  count = 1 },
-        { type = ENUMS.Storage.weapons.UH1H.M60_MG_Right_Door,  count = 1 },
-        { type = ENUMS.Storage.weapons.CH47.CH47_PORT_M240H,  count = 1 },
-        { type = ENUMS.Storage.weapons.CH47.CH47_STBD_M240H,  count = 1 },
-        { type = ENUMS.Storage.weapons.CH47.CH47_AFT_M240H,  count = 1 },
-        { type = {4, 15, 46, 170},  count = 2 }, -- Гув 
-        { type = {4, 15, 46, 20},  count = 2 }, -- УПК 
-        { type = {4, 15, 46, 183},  count = 1 }, -- Корд 
-        { type = {4, 15, 46, 184},  count = 1 }, --ПКТ
-        { type = "weapons.nurs.HYDRA_70_M151",  count = 40 },
-        { type = "weapons.nurs.HYDRA_70_M257",  count = 20 },
-        { type = "weapons.nurs.HYDRA_70_MK5",  count = 40 },
-        { type = "weapons.nurs.C_8",  count = 40 },
-        { type = "weapons.nurs.C_8OFP2",  count = 40 },
-        { type = "weapons.nurs.C_8OM",  count = 20 },
-        { type = "weapons.nurs.S-24B",  count = 4 },
-        { type = "weapons.nurs.SNEB_TYPE257_H1",  count = 20 },
-        { type = "weapons.nurs.SNEB_TYPE259E_H1",  count = 20 }
-      },
-      value = 3000,
-      static = true,
-    },
-    CRATEMISSLE = {
-      name = "CargoMissleBLUE", -- уникальное имя
-      spawner = SPAWNSTATIC:NewFromStatic("MISSLECARGOBLUE", country.id.CJTF_BLUE),
-      nameText = "Ракеты",
-      cargoType = "ammo", -- тип груза топливо или амуниция в т.ч. борты (liquid/ammo)
-      content = {
-        { type = "weapons.missiles.Mistral",  count = 4 },
-        { type = "weapons.missiles.OH58D_FIM_92",  count = 4 },
-        { type = "weapons.missiles.AGM_114K",  count = 4 },
-        { type = "weapons.missiles.P_60",  count = 4 },
-        { type = "weapons.missiles.AT_6",  count = 8 },
-        { type = "weapons.missiles.HOT3_MBDA",  count = 8 },
-      },
-      value = 3000,
-      static = true,
     }
   }
 }
