@@ -70,12 +70,12 @@ end
 
 
 -- Выполняет поиск груза в указанном радиусе от заданной точки.given point.
--- @param pointVec2 Координаты Vec2, представляющие центральную точку поиска
+-- @param pointCoordinate @type COORDINATE. Центральная точка поиска
 -- @param radius Число, представляющее радиус поиска в метрах
 -- @return Таблица, содержащая объекты груза, найденные в указанном радиусе.cargoInRange
 -- @return Объект груза, представляющий ближайший груз к указанной точке.closestCargo
 -- @return Число, представляющее расстояние до ближайшего груза.distance
-function GetCargoInRange(pointVec2, range)
+function GetCargoInRange(pointCoordinate, range)
     if (range == nil) then range = 30 end
     local cargoInRange = {}
     local closestCargo = nil
@@ -83,7 +83,7 @@ function GetCargoInRange(pointVec2, range)
     
     set_cargo:ForEach(function(cargo)
       if (cargo.weight ~= nil) then
-        local _distance = pointVec2:DistanceFromPointVec2(cargo:GetPointVec2())
+        local _distance = pointCoordinate:Get2DDistance(cargo:GetCoordinate())
         if _distance < range then
             table.insert(cargoInRange, cargo)
             if (_distance < distance) then
@@ -101,7 +101,7 @@ end
 -- @param pointVec2 Координаты Vec2, представляющие центральную точку поиска
 -- @return STATIC, объект STATIC, представляющий ближайший груз к указанной точке
 function LoadCargo(unit)
-    local _,closestCargo = GetCargoInRange(unit:GetPointVec2())
+    local _,closestCargo = GetCargoInRange(unit:GetCoordinate())
   
     if unit:InAir(true) then MESSAGE:New('Погрузка в воздухе недопустима!', 20):ToUnit(unit) return nil end
     if closestCargo == nil then MESSAGE:New('Нечего загружать', 20):ToUnit(unit) end
@@ -121,7 +121,7 @@ end
 -- @return Boolean, true если найдены грузы, false если грузов не найдено
 function ListCargoInRange(unit, range)
     if (range == nil) then range = 50 end
-    local cargos = GetCargoInRange(unit:GetPointVec2(), range)
+    local cargos = GetCargoInRange(unit:GetCoordinate(), range)
     
     if #cargos == 0 then
         MESSAGE:New("Груз в радиусе " .. range .. " метров не обнаружен", 20):ToUnit(unit)
@@ -129,7 +129,7 @@ function ListCargoInRange(unit, range)
     else
         local message = "Обнаружены следующие грузы в радиусе " .. range .. " метров:\n"
         for i, cargo in ipairs(cargos) do
-            local distance = math.floor(unit:GetPointVec2():DistanceFromPointVec2(cargo:GetPointVec2()))
+            local distance = math.floor(unit:GetCoordinate():Get2DDistance(cargo:GetCoordinate()))
             message = message .. i .. ". " .. cargo.type.nameText .. " (" .. cargo.weight .. " кг) - " .. distance .. " м\n"
         end
         MESSAGE:New(message, 20):ToUnit(unit)
@@ -146,11 +146,12 @@ function GetNearestAirfield(unit)
 
     local nearestAirbase = nil
     local nearestDistance = math.huge
+    local unitCoordinate = unit:GetCoordinate()
 
     -- Перебираем все аэродромы
     for _, airbase in pairs(airbases) do
         -- Вычисляем расстояние между юнитом и аэродромом
-        local distance = UTILS.VecDist2D(unit:GetVec2(), airbase:GetVec2())
+        local distance = unitCoordinate:Get2DDistance(airbase:GetCoordinate())
 
         -- Если это ближайший аэродром, обновляем переменные
         if distance < nearestDistance then
@@ -175,7 +176,7 @@ function UnloadCargo(unit)
     for _,cargo in pairs(unit:GetCargo()) do
         unit:RemoveCargo(cargo)
         -- set_cargo:Remove(cargo:GetName(), true)
-        SpawnCargo(unit, cargo.type, cargo.weight, unit:GetCoordinate(), unit:GetHeading(), false, cargo:GetName())
+        SpawnCargo(unit, cargo.type, cargo.weight, unit:GetCoordinate(), unit:GetHeading(), cargo:GetName())
         cargo:Destroy()
         CalculateMass(unit)
         MESSAGE:New('Выгружено '..cargo.type.nameText..' '..cargo.weight..'кг.', 20):ToUnit(unit)
@@ -199,7 +200,7 @@ function CheckCargo(unit)
     return unit
 end
 
-function RotateAndTranslateCoordinates(originalPointVec2, newPointVec2, headingAngle, objects)
+function RotateAndTranslateCoordinates(originalCoordinate, newCoordinate, headingAngle, objects)
     local result = {}
     local radians = math.rad(headingAngle)
     local cosAngle = math.cos(radians)
@@ -211,21 +212,19 @@ function RotateAndTranslateCoordinates(originalPointVec2, newPointVec2, headingA
         staticObj = STATIC:FindByName(objIdentifier.SpawnTemplatePrefix)
         
         if staticObj then
-            local objVec2 = staticObj:GetPointVec2()
+            local objCoordinate = staticObj:GetCoordinate()
             
-            -- Calculate object's position relative to originalPointVec2
-            local relX = objVec2:GetX() - originalPointVec2:GetX()
-            local relY = objVec2:GetY() - originalPointVec2:GetY()
+            -- Calculate object's position relative to original coordinate (2D: X/Z plane)
+            local relX = objCoordinate.x - originalCoordinate.x
+            local relZ = objCoordinate.z - originalCoordinate.z
             
             -- Rotate relative position
-            local rotatedX = relX * cosAngle - relY * sinAngle
-            local rotatedY = relX * sinAngle + relY * cosAngle
+            local rotatedX = relX * cosAngle - relZ * sinAngle
+            local rotatedZ = relX * sinAngle + relZ * cosAngle
             
             -- Translate to new reference point
-            result[name] = POINT_VEC2:New(
-                newPointVec2:GetX() + rotatedX, 
-                newPointVec2:GetY() + rotatedY
-            )
+            local newVec2 = { x = newCoordinate.x + rotatedX, y = newCoordinate.z + rotatedZ }
+            result[name] = COORDINATE:NewFromVec2(newVec2)
         end
     end
     
@@ -244,8 +243,11 @@ function CalculateCoordsForFARPSTUFF(zone)
 end
 
 function DestroyCargo(unit)
-    local _, closestCargo = GetCargoInRange(unit:GetPointVec2(), 50)
-    if (closestCargo == nil) then MESSAGE:New('Рядом нечего уничтожить', 20):ToUnit(unit) end
+    local _, closestCargo = GetCargoInRange(unit:GetCoordinate(), 50)
+    if (closestCargo == nil) then
+      MESSAGE:New('Рядом нечего уничтожить', 20):ToUnit(unit)
+      return false
+    end
     closestCargo:Destroy(false)
     set_cargo:Remove(closestCargo:GetName(), true)
     MESSAGE:New(string.format('Груз уничтожен: %s', closestCargo.type.nameText), 20):ToUnit(unit)
@@ -261,8 +263,11 @@ local freeADFFrequencies = {
 -- @param unit @type UNIT. Объект UNIT, представляющий юнит, который распаковывает груз
 -- @return Boolean, true если груз был распакован, false если груз не был распакован
 function UnpackCargo(unit)
-    local _, closestCargo = GetCargoInRange(unit:GetPointVec2(), 50)
-    if (closestCargo == nil) then MESSAGE:New('Рядом нечего распаковать', 20):ToUnit(unit) end
+    local _, closestCargo = GetCargoInRange(unit:GetCoordinate(), 50)
+    if (closestCargo == nil) then
+      MESSAGE:New('Рядом нечего распаковать', 20):ToUnit(unit)
+      return false
+    end
 
     local closestZone, closestZoneRange = GetNearestAirfield(unit)
     local function _RemoveAndDestroyCargo(cargo)
@@ -288,8 +293,8 @@ function UnpackCargo(unit)
             
             -- получить новые координаты
             local newPoints = RotateAndTranslateCoordinates(
-                STATIC:FindByName(closestCargo.type.constructionSpawner['spawnFarp'].SpawnTemplatePrefix):GetPointVec2(),
-                    closestCargo:GetPointVec2(),
+                STATIC:FindByName(closestCargo.type.constructionSpawner['spawnFarp'].SpawnTemplatePrefix):GetCoordinate(),
+                closestCargo:GetCoordinate(),
                     unit:GetHeading(),
                     closestCargo.type.constructionSpawner)
             
@@ -303,7 +308,7 @@ function UnpackCargo(unit)
             -- Создаем статики
             counter = counter + 1
             for name, point in pairs(newPoints) do
-                local generatedStatic = closestCargo.type.constructionSpawner[name]:SpawnFromPointVec2(point, unit:GetHeading(), NameGenerator(name, counter))
+                local generatedStatic = closestCargo.type.constructionSpawner[name]:SpawnFromCoordinate(point, unit:GetHeading(), NameGenerator(name, counter))
                 if name == 'spawnFarp' then
                     generatedStatic.ADFFreq = ADF
                     generatedStatic.ADFName = ADFName
@@ -333,7 +338,7 @@ function UnpackCargo(unit)
             -- Если этот юнит, который может выставляться только в зоне от базы, то тогда проверяем расстояние
             -- Если расстояние больше, то выводим сообщене и не создаем юнит
             if closestCargo.type.limitedDistanceFromBASE ~= nil then
-                if UTILS.VecDist2D(unit:GetVec2(), closestZone:GetVec2()) > closestCargo.type.limitedDistanceFromBASE then
+                if unit:GetCoordinate():Get2DDistance(closestZone:GetCoordinate()) > closestCargo.type.limitedDistanceFromBASE then
                     MESSAGE:New('Слишком далеко от базы', 20):ToUnit(unit)
                     return false
                 end
@@ -345,7 +350,7 @@ function UnpackCargo(unit)
                 local newPoint = CalculateCoordsForFARPSTUFF(closestZone)
                 spawnedUnit = closestCargo.type.spawnerUnit:SpawnFromCoordinate(newPoint)
             else
-                spawnedUnit = closestCargo.type.spawnerUnit:SpawnFromVec2(closestCargo:GetCoordinate():GetVec2())
+                spawnedUnit = closestCargo.type.spawnerUnit:SpawnFromCoordinate(closestCargo:GetCoordinate())
             end
 
             -- проверим на лимиты юнитов
