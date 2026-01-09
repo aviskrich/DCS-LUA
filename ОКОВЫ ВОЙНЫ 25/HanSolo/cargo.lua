@@ -60,7 +60,8 @@ local _cargoiterator = 0
 -- @return STATIC, объект STATIC, представляющий созданный груз
 function SpawnCargo(unit, typeObject, weight, coordinate, heading, newName)
     _cargoiterator = _cargoiterator + 1
-    local staticObj = typeObject.spawner:SpawnFromCoordinate( coordinate:Translate(24+math.random(-2,6),heading+math.random(-30, 30)), math.random(360), newName)
+    local newCoordinate = COORDINATE:NewFromVec2(coordinate:Translate(24+math.random(-2,6),heading+math.random(-30, 30)):GetVec2())
+    local staticObj = typeObject.spawner:SpawnFromCoordinate( newCoordinate, math.random(360), newName)
     staticObj.weight = weight
     staticObj.type = typeObject
     MESSAGE:New(typeObject.nameText..' весом '..weight..'кг. готов к погрузке', 20):ToUnit(unit)
