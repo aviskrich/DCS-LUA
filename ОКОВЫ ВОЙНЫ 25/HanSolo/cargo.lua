@@ -50,6 +50,7 @@ function CalculateMass(unit)
 end
 
 local _cargoiterator = 0
+
 --- Создает груз на координатах, указанных в параметрах.
 -- @param unit @type UNIT. Объект UNIT, представляющий юнит, который запросил груз
 -- @param typeObject @type CARGOSTATIC. Объект CARGOSTATIC, представляющий тип груза, который необходимо создать
@@ -177,7 +178,7 @@ function UnloadCargo(unit)
     for _,cargo in pairs(unit:GetCargo()) do
         unit:RemoveCargo(cargo)
         -- set_cargo:Remove(cargo:GetName(), true)
-        SpawnCargo(unit, cargo.type, cargo.weight, unit:GetCoordinate(), unit:GetHeading(), cargo:GetName())
+        SpawnCargo(unit, cargo.type, cargo.weight, unit:GetCoordinate(), unit:GetHeading(), NameGenerator(cargo.type.nameText, _cargoiterator))
         cargo:Destroy()
         CalculateMass(unit)
         MESSAGE:New('Выгружено '..cargo.type.nameText..' '..cargo.weight..'кг.', 20):ToUnit(unit)
