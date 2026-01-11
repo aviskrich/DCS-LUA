@@ -782,6 +782,7 @@ Main.redAI = {
   "C130-D",
   "C130-E",
   "C130-F",
+  "A50-A",
 }
 
 function Main:main()
