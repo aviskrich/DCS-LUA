@@ -149,7 +149,9 @@ function BotGroup:addAWACStoIADS()
   end
 
   if self.id == "KJ-A" or
-      self.id == "KJ-B" then
+      self.id == "KJ-B" or 
+      self.id == "A50-A" or
+      self.id == "A50-B" then
     --DbgTools.logInfo("There are red IADS")
     local group = Group.getByName(self.name)
     if group and TheRedIADS then
