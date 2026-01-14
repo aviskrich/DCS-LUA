@@ -1,416 +1,228 @@
---assert(loadfile("C:\\Users\\spenc\\OneDrive\\Documents\\Eclipe_LDT\\dcs splash damage\\src\\mist.lua"))()
----dcsme
---[[
-03 mai 2023 (KERV)
-    correction AGM 154 (https://forum.dcs.world/topic/289290-splash-damage-20-script-make-explosions-better/page/5/#comment-5207760)
- 
-06 mars 2023 (Kerv)
- Add some data for new ammunition
-
-16 April 2022
-    spencershepard (GRIMM):
-    - added new/missing weapons to explTable
-    - added new option rocket_multiplier
-
-31 December 2021
-    spencershepard (GRIMM):
-    -added many new weapons
-    -added filter for weapons.shells events
-    -fixed mission weapon message option
-    -changed default for damage_model option
- 
-21 December 2021
-    spencershepard (GRIMM):
-     SPLASH DAMAGE 2.0:
-     -Added blast wave effect to add timed and scaled secondary explosions on top of game objects
-     -object geometry within blast wave changes damage intensity
-     -damage boost for structures since they are hard to kill, even if very close to large explosions
-     -increased some rocket values in explTable
-     -missing weapons from explTable will display message to user and log to DCS.log so that we can add what's missing
-     -damage model for ground units that will disable their weapons and ability to move with partial damage before they are killed
-     -added options table to allow easy adjustments before release
-     -general refactoring and restructure
-
-28 October 2020
-    FrozenDroid: 
-    - Uncommented error logging, actually made it an error log which shows a message box on error.
-    - Fixed the too restrictive weapon filter (took out the HE warhead requirement)
-
-2 October 2020
-    FrozenDroid:
-    - Added error handling to all event handler and scheduled functions. Lua script errors can no longer bring the server down.
-    - Added some extra checks to which weapons to handle, make sure they actually have a warhead (how come S-8KOM's don't have a warhead field...?)
---]]
-
 ----[[ ##### SCRIPT CONFIGURATION ##### ]]----
 
-    splash_damage_options = {
-      ["static_damage_boost"] = 500, --apply extra damage to Unit.Category.STRUCTUREs with wave explosions
-      ["wave_explosions"] = true, --secondary explosions on top of game objects, radiating outward from the impact point and scaled based on size of object and distance from weapon impact point
-      ["larger_explosions"] = true, --secondary explosions on top of weapon impact points, dictated by the values in the explTable
-      ["damage_model"] = true, --allow blast wave to affect ground unit movement and weapons
-      ["blast_search_radius"] = 100, --this is the max size of any blast wave radius, since we will only find objects within this zone
-      ["cascade_damage_threshold"] = 0.1, --if the calculated blast damage doesn't exeed this value, there will be no secondary explosion damage on the unit.  If this value is too small, the appearance of explosions far outside of an expected radius looks incorrect.
-      ["game_messages"] = false, --enable some messages on screen
-      ["blast_stun"] = false, --not implemented
-      ["unit_disabled_health"] = 30, --if health is below this value after our explosions, disable its movement 
-      ["unit_cant_fire_health"] = 50, --if health is below this value after our explosions, set ROE to HOLD to simulate damage weapon systems
-      ["infantry_cant_fire_health"] = 90,  --if health is below this value after our explosions, set ROE to HOLD to simulate severe injury
-      ["debug"] = false,  --enable debugging messages
-      ["weapon_missing_message"] = false, --false disables messages alerting you to weapons missing from the explTable
-      ["rocket_multiplier"] = 1.3, --multiplied by the explTable value for rockets
-    }
-    
-    local script_enable = 1
-    refreshRate = 0.1
-    
-    ----[[ ##### End of SCRIPT CONFIGURATION ##### ]]----
-    
-    explTable = {
-      ["FAB_100"] = 25,
-      ["FAB_250"] = 50,
-      ["FAB_250M54TU"]= 50,
-      ["FAB_500"] = 100,
-      ["FAB_1500"]  = 350,
-      ["BetAB_500"] = 35,
-      ["BetAB_500ShP"]= 35,
-      ["KH-66_Grom"]  = 20,
-      ["Mk_81"] = 25,
-      ["Mk_82"] = 40,
-      ["Mk_83"] = 100,
-      ["Mk_84"] = 220,
-      ["MK_82AIR"]  = 40,
-      ["MK_82SNAKEYE"]= 40,
-      ["GBU_10"]  = 220,
-      ["GBU_12"]  = 40,
-      ["GBU_16"]  = 100,
-      ["GBU_8_B"] = 100,
-      ["KAB_1500Kr"]  = 350,
-      ["KAB_500Kr"] = 100,
-      ["KAB_500"] = 100,
-      ["GBU_31"]  = 220
-      ["GBU_31_V_3B"] = 120,
-      ["GBU_31_V_2B"] = 120,
-      ["GBU_31_V_4B"] = 120,
-      ["GBU_32_V_2B"] = 120,
-      ["GBU_38"]  = 40,
-      ["AGM_62"]  = 210,
-      ["AGM_62_I"] = 20,
-      ["GBU_24"]  = 120,
-      --["AGM_84E"] = 150,
-      --["AGM_84H"] = 150,
-      --["AGM_84S"] = 150,					
-      ["AGM_154C"]  = 50,
-      ["S-24A"] = 15,
-      ["S-24B"] = 10,
-      ["S-25OF"]  = 30,
-      ["S-25OFM"] = 30,
-      ["S-25O"] = 30,
-      ["S_25L"] = 30,
-    
-     
-    
-      ["MK-81SE"] = 25,
-      
-      
-      ["GBU_54_V_1B"] = 40,
-    
-                                   -- CBUs
-    
-    
-    --  ["AGM_86"] = 305, --B-52 Cruise missile
-    -- ["BGM_109B"] = 582,  --tomahawk
-      ["SCUD_RAKETA"] = 712,
-    
-    
-    
-    ----[[ ##### HELPER/UTILITY FUNCTIONS ##### ]]----
-    
-    local function tableHasKey(table,key)
-        return table[key] ~= nil
-    end
-    
-    local function debugMsg(str)
-      if splash_damage_options.debug == true then
-        trigger.action.outText(str , 5)
+splash_damage_options = {
+  static_damage_boost = 500,
+  wave_explosions = true,
+  larger_explosions = true,
+  damage_model = true,
+  blast_search_radius = 100,
+  cascade_damage_threshold = 0.1,
+  game_messages = false,
+  blast_stun = false,
+  unit_disabled_health = 30,
+  unit_cant_fire_health = 50,
+  infantry_cant_fire_health = 90,
+  debug = false,
+  weapon_missing_message = false,
+  rocket_multiplier = 1.3,
+}
+
+local script_enable = 1
+refreshRate = 0.1
+
+----[[ ##### EXPLOSIVE TABLE ##### ]]----
+
+explTable = {
+  ["FAB_100"] = 25,
+  ["FAB_250"] = 50,
+  ["FAB_250M54TU"] = 50,
+  ["FAB_500"] = 100,
+  ["FAB_1500"] = 350,
+  ["BetAB_500"] = 35,
+  ["BetAB_500ShP"] = 35,
+  ["KH-66_Grom"] = 20,
+  ["Mk_81"] = 25,
+  ["Mk_82"] = 40,
+  ["Mk_83"] = 100,
+  ["Mk_84"] = 220,
+  ["MK_82AIR"] = 40,
+  ["MK_82SNAKEYE"] = 40,
+  ["GBU_10"] = 220,
+  ["GBU_12"] = 40,
+  ["GBU_16"] = 100,
+  ["GBU_8_B"] = 100,
+  ["KAB_1500Kr"] = 350,
+  ["KAB_500Kr"] = 100,
+  ["KAB_500"] = 100,
+  ["GBU_31"] = 220,
+  ["GBU_31_V_3B"] = 120,
+  ["GBU_31_V_2B"] = 120,
+  ["GBU_31_V_4B"] = 120,
+  ["GBU_32_V_2B"] = 120,
+  ["GBU_38"] = 40,
+  ["AGM_62"] = 210,
+  ["AGM_62_I"] = 20,
+  ["GBU_24"] = 120,
+  ["AGM_154C"] = 50,
+  ["S-24A"] = 15,
+  ["S-24B"] = 10,
+  ["S-25OF"] = 30,
+  ["S-25OFM"] = 30,
+  ["S-25O"] = 30,
+  ["S_25L"] = 30,
+  ["MK-81SE"] = 25,
+  ["GBU_54_V_1B"] = 40,
+  ["SCUD_RAKETA"] = 712,
+}
+
+----[[ ##### UTILITY FUNCTIONS ##### ]]----
+
+local function tableHasKey(t, key)
+  return t[key] ~= nil
+end
+
+local function getDistance(p1, p2)
+  local dx = p1.x - p2.x
+  local dz = p1.z - p2.z
+  return math.sqrt(dx * dx + dz * dz)
+end
+
+local function vec3Mag(v)
+  return math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+end
+
+local function lookahead(speedVec)
+  return vec3Mag(speedVec) * refreshRate * 1.5
+end
+
+function getWeaponExplosive(name)
+  return explTable[name] or 0
+end
+
+----[[ ##### WEAPON TRACKING ##### ]]----
+
+tracked_weapons = {}
+WpnHandler = {}
+
+local function track_wpns()
+  for id, wpnData in pairs(tracked_weapons) do
+    if wpnData.wpn:isExist() then
+      wpnData.pos = wpnData.wpn:getPosition().p
+      wpnData.dir = wpnData.wpn:getPosition().x
+      wpnData.speed = wpnData.wpn:getVelocity()
+    else
+      local ip = land.getIP(wpnData.pos, wpnData.dir, lookahead(wpnData.speed))
+      local impactPoint = ip or wpnData.pos
+
+      local explosive = getWeaponExplosive(wpnData.name)
+      if wpnData.cat == Weapon.Category.ROCKET then
+        explosive = explosive * splash_damage_options.rocket_multiplier
       end
-    end
-    
-    local function gameMsg(str)
-      if splash_damage_options.game_messages == true then
-        trigger.action.outText(str , 5)
+
+      if splash_damage_options.larger_explosions then
+        trigger.action.explosion(impactPoint, explosive)
       end
+
+      blastWave(impactPoint, splash_damage_options.blast_search_radius, wpnData.ordnance, explosive)
+      tracked_weapons[id] = nil
     end
-    
-    local function getDistance(point1, point2)
-      local x1 = point1.x
-      local y1 = point1.y
-      local z1 = point1.z
-      local x2 = point2.x
-      local y2 = point2.y
-      local z2 = point2.z
-      local dX = math.abs(x1-x2)
-      local dZ = math.abs(z1-z2)
-      local distance = math.sqrt(dX*dX + dZ*dZ)
-      return distance
-    end
-    
-    local function getDistance3D(point1, point2)
-      local x1 = point1.x
-      local y1 = point1.y
-      local z1 = point1.z
-      local x2 = point2.x
-      local y2 = point2.y
-      local z2 = point2.z
-      local dX = math.abs(x1-x2)
-      local dY = math.abs(y1-y2)
-      local dZ = math.abs(z1-z2)
-      local distance = math.sqrt(dX*dX + dZ*dZ + dY*dY)
-      return distance
-    end
-    
-    local function vec3Mag(speedVec)
-      local mag = speedVec.x*speedVec.x + speedVec.y*speedVec.y+speedVec.z*speedVec.z
-      mag = math.sqrt(mag)
-      --trigger.action.outText("X = " .. speedVec.x ..", y = " .. speedVec.y .. ", z = "..speedVec.z, 10)
-      --trigger.action.outText("Speed = " .. mag, 1)
-      return mag
-    end
-    
-    local function lookahead(speedVec)
-      local speed = vec3Mag(speedVec)
-      local dist = speed * refreshRate * 1.5 
-      return dist
-    end
-    
-    ----[[ ##### End of HELPER/UTILITY FUNCTIONS ##### ]]----
-    
-    
-    WpnHandler = {}
-    tracked_weapons = {}
-    
-    function track_wpns()
-    --  env.info("Weapon Track Start")
-      for wpn_id_, wpnData in pairs(tracked_weapons) do   
-        if wpnData.wpn:isExist() then  -- just update speed, position and direction.
-          wpnData.pos = wpnData.wpn:getPosition().p
-          wpnData.dir = wpnData.wpn:getPosition().x
-          wpnData.speed = wpnData.wpn:getVelocity()
-          --wpnData.lastIP = land.getIP(wpnData.pos, wpnData.dir, 50)
-        else -- wpn no longer exists, must be dead.
-    --      trigger.action.outText("Weapon impacted, mass of weapon warhead is " .. wpnData.exMass, 2)
-          local ip = land.getIP(wpnData.pos, wpnData.dir, lookahead(wpnData.speed))  -- terrain intersection point with weapon's nose.  Only search out 20 meters though.
-          local impactPoint
-          if not ip then -- use last calculated IP
-            impactPoint = wpnData.pos
-      --        trigger.action.outText("Impact Point:\nPos X: " .. impactPoint.x .. "\nPos Z: " .. impactPoint.z, 2)
-          else -- use intersection point
-            impactPoint = ip
-      --        trigger.action.outText("Impact Point:\nPos X: " .. impactPoint.x .. "\nPos Z: " .. impactPoint.z, 2)
-          end
-          --env.info("Weapon is gone") -- Got to here -- 
-          --trigger.action.outText("Weapon Type was: ".. wpnData.name, 20)
-          if splash_damage_options.larger_explosions == true then
-              --env.info("triggered explosion size: "..getWeaponExplosive(wpnData.name))
-              trigger.action.explosion(impactPoint, getWeaponExplosive(wpnData.name))
-              --trigger.action.smoke(impactPoint, 0)
-          end
-        local explosive = getWeaponExplosive(wpnData.name)
-          if splash_damage_options.rocket_multiplier > 0 and wpnData.cat == Weapon.Category.ROCKET then
-            explosive = explosive * splash_damage_options.rocket_multiplier
-          end
-        blastWave(impactPoint, splash_damage_options.blast_search_radius, wpnData.ordnance, explosive)
-          tracked_weapons[wpn_id_] = nil -- remove from tracked weapons first.         
+  end
+end
+
+local function onWpnEvent(event)
+  if event.id ~= world.event.S_EVENT_SHOT or not event.weapon then return end
+
+  local ordnance = event.weapon
+  local desc = ordnance:getDesc()
+  if not desc or not desc.warhead then return end
+  if string.find(ordnance:getTypeName(), "weapons.shells") then return end
+
+  tracked_weapons[ordnance.id_] = {
+    wpn = ordnance,
+    ordnance = ordnance,
+    pos = ordnance:getPoint(),
+    dir = ordnance:getPosition().x,
+    speed = ordnance:getVelocity(),
+    name = ordnance:getTypeName(),
+    cat = ordnance:getCategory()
+  }
+end
+
+function WpnHandler:onEvent(event)
+  local ok, err = pcall(onWpnEvent, event)
+  if not ok then
+    env.warning("Splash Damage error: " .. tostring(err), true)
+  end
+end
+
+----[[ ##### DAMAGE MODEL ##### ]]----
+
+function modelUnitDamage(units)
+  for _, unit in ipairs(units) do
+    if unit:isExist() then
+      local health = (unit:getLife() / unit:getDesc().life) * 100
+
+      if unit:hasAttribute("Infantry") then
+        if health <= splash_damage_options.infantry_cant_fire_health then
+          unit:getController():setOption(AI.Option.Ground.id.ROE, AI.Option.Ground.val.ROE.WEAPON_HOLD)
         end
-      end
-    --  env.info("Weapon Track End")
-    end
-    
-    function onWpnEvent(event)
-      if event.id == world.event.S_EVENT_SHOT then
-        if event.weapon then
-          local ordnance = event.weapon
-          local weapon_desc = ordnance:getDesc()
-          if string.find(ordnance:getTypeName(), "weapons.shells") then 
-            debugMsg("event shot, but not tracking: "..ordnance:getTypeName())
-            return  --we wont track these types of weapons, so exit here
-          end
-            
-          if explTable[ordnance:getTypeName()] then
-            --trigger.action.outText(ordnance:getTypeName().." found.", 10)
-          else 
-            env.info(ordnance:getTypeName().." missing from Splash Damage script")
-            if splash_damage_options.weapon_missing_message == true then
-              trigger.action.outText(ordnance:getTypeName().." missing from Splash Damage script", 10)
-              debugMsg("desc: "..mist.utils.tableShow(weapon_desc))
-            end
-          end
-          if (weapon_desc.category ~= 0) and event.initiator then
-            if (weapon_desc.category == 1) then
-              if (weapon_desc.MissileCategory ~= 1 and weapon_desc.MissileCategory ~= 2) then
-                tracked_weapons[event.weapon.id_] = { wpn = ordnance, init = event.initiator:getName(), pos = ordnance:getPoint(), dir = ordnance:getPosition().x, name = ordnance:getTypeName(), speed = ordnance:getVelocity(), cat = ordnance:getCategory() }
-              end
-            else
-              tracked_weapons[event.weapon.id_] = { wpn = ordnance, init = event.initiator:getName(), pos = ordnance:getPoint(), dir = ordnance:getPosition().x, name = ordnance:getTypeName(), speed = ordnance:getVelocity(), cat = ordnance:getCategory() }
-            end
-          end
+      elseif unit:getDesc().category == Unit.Category.GROUND_UNIT then
+        if health <= splash_damage_options.unit_cant_fire_health then
+          unit:getController():setOption(AI.Option.Ground.id.ROE, AI.Option.Ground.val.ROE.WEAPON_HOLD)
         end
-      end
-    
-    end
-    
-    local function protectedCall(...)
-      local status, retval = pcall(...)
-      if not status then
-        env.warning("Splash damage script error... gracefully caught! " .. retval, true)
-      end
-    end
-    
-    
-    function WpnHandler:onEvent(event)
-      protectedCall(onWpnEvent, event)
-    end
-    
-    
-    
-    function explodeObject(table)
-      local point = table[1]
-      local distance = table[2]
-      local power = table[3]
-      trigger.action.explosion(point, power) 
-    end
-    
-    function getWeaponExplosive(name)
-      if explTable[name] then
-        return explTable[name]
-      else
-        return 0
-      end
-    end
-    
-    --controller is only at group level for ground units.  we should itterate over the group and only apply effects if health thresholds are met by all units in the group
-    function modelUnitDamage(units)
-      --debugMsg("units table: "..mist.utils.tableShow(units))
-      for i, unit in ipairs(units)
-      do
-        --debugMsg("unit table: "..mist.utils.tableShow(unit))
-        if unit:isExist() then  --if units are not already dead
-          local health = (unit:getLife() / unit:getDesc().life) * 100 
-          --debugMsg(unit:getTypeName().." health %"..health) 
-          if unit:hasAttribute("Infantry") == true and health > 0 then  --if infantry
-            if health <= splash_damage_options.infantry_cant_fire_health then
-              ---disable unit's ability to fire---
-              unit:getController():setOption(AI.Option.Ground.id.ROE , AI.Option.Ground.val.ROE.WEAPON_HOLD)
-            end
-          end
-          if unit:getDesc().category == Unit.Category.GROUND_UNIT == true and unit:hasAttribute("Infantry") == false and health > 0 then  --if ground unit but not infantry
-            if health <= splash_damage_options.unit_cant_fire_health then
-              ---disable unit's ability to fire---
-              unit:getController():setOption(AI.Option.Ground.id.ROE , AI.Option.Ground.val.ROE.WEAPON_HOLD)
-              gameMsg(unit:getTypeName().." weapons disabled")
-            end
-            if health <= splash_damage_options.unit_disabled_health and health > 0 then
-              ---disable unit's ability to move---
-              unit:getController():setTask({id = 'Hold', params = { }} )
-              unit:getController():setOnOff(false) 
-              gameMsg(unit:getTypeName().." disabled")
-            end
-          end
-          
-        else
-          --debugMsg("unit no longer exists")
+        if health <= splash_damage_options.unit_disabled_health then
+          unit:getController():setTask({ id = "Hold", params = {} })
+          unit:getController():setOnOff(false)
         end
       end
     end
-     
-     
-    function blastWave(_point, _radius, weapon, power)
-      local foundUnits = {}
-      local volS = {
-       id = world.VolumeType.SPHERE,
-       params = {
-         point = _point,
-         radius = _radius
-       }
-      }
-     
-      local ifFound = function(foundObject, val)
-        if foundObject:getDesc().category == Unit.Category.GROUND_UNIT and foundObject:getCategory() == Object.Category.UNIT then
-          foundUnits[#foundUnits + 1] = foundObject
-        end
-        if foundObject:getDesc().category == Unit.Category.GROUND_UNIT then --if ground unit
-          if splash_damage_options.blast_stun == true then
-            --suppressUnit(foundObject, 2, weapon)
-          end
-        end
-        if splash_damage_options.wave_explosions == true then
-          local obj = foundObject
-          local obj_location = obj:getPoint()
-          local distance = getDistance(_point, obj_location)
-          local timing = distance/500      
-          if obj:isExist() then
-            
-            if tableHasKey(obj:getDesc(), "box") then
-              local length = (obj:getDesc().box.max.x + math.abs(obj:getDesc().box.min.x))
-              local height = (obj:getDesc().box.max.y + math.abs(obj:getDesc().box.min.y))
-              local depth = (obj:getDesc().box.max.z + math.abs(obj:getDesc().box.min.z))
-              local _length = length
-              local _depth = depth
-              if depth > length then 
-                _length = depth 
-                _depth = length
-              end
-              local surface_distance = distance - _depth/2 
-              local scaled_power_factor = 0.006 * power + 1 --this could be reduced into the calc on the next line
-              local intensity = (power * scaled_power_factor) / (4 * 3.14 * surface_distance * surface_distance )
-              local surface_area = _length * height --Ideally we should roughly calculate the surface area facing the blast point, but we'll just find the largest side of the object for now
-              local damage_for_surface = intensity * surface_area    
-              --debugMsg(obj:getTypeName().." sa:"..surface_area.." distance:"..surface_distance.." dfs:"..damage_for_surface)
-              if damage_for_surface > splash_damage_options.cascade_damage_threshold then
-                local explosion_size = damage_for_surface
-                if obj:getDesc().category == Unit.Category.STRUCTURE then
-                  explosion_size = intensity * splash_damage_options.static_damage_boost --apply an extra damage boost for static objects. should we factor in surface_area?
-                  --debugMsg("static obj :"..obj:getTypeName())
-                end
-                if explosion_size > power then explosion_size = power end --secondary explosions should not be larger than the explosion that created it
-                local id = timer.scheduleFunction(explodeObject, {obj_location, distance, explosion_size}, timer.getTime() + timing)  --create the explosion on the object location
-              end
-    
-              
-            else --debugMsg(obj:getTypeName().." object does not have box property")
-          end
-            
-        end
-        
-       end
-        
-      return true
-      end
-     
-      world.searchObjects(Object.Category.UNIT, volS, ifFound)
-      world.searchObjects(Object.Category.STATIC, volS, ifFound)
-      world.searchObjects(Object.Category.SCENERY, volS, ifFound)
-      world.searchObjects(Object.Category.CARGO, volS, ifFound)
-      --world.searchObjects(Object.Category.BASE, volS, ifFound)
-     
-      if splash_damage_options.damage_model == true then 
-        local id = timer.scheduleFunction(modelUnitDamage, foundUnits, timer.getTime() + 1.5) --allow some time for the game to adjust health levels before running our function
+  end
+end
+
+----[[ ##### BLAST WAVE ##### ]]----
+
+function blastWave(point, radius, weapon, power)
+  local foundUnits = {}
+
+  local vol = {
+    id = world.VolumeType.SPHERE,
+    params = { point = point, radius = radius }
+  }
+
+  local function ifFound(obj)
+    if not obj:isExist() then return true end
+
+    if obj:getCategory() == Object.Category.UNIT then
+      foundUnits[#foundUnits + 1] = obj
+    end
+
+    if splash_damage_options.wave_explosions and obj:getDesc().box then
+      local objPos = obj:getPoint()
+      local distance = getDistance(point, objPos)
+      local depth = math.abs(obj:getDesc().box.max.z - obj:getDesc().box.min.z)
+      local surface_distance = math.max(distance - depth / 2, 1)
+
+      local intensity = power / (4 * math.pi * surface_distance * surface_distance)
+      local explosion_size = math.min(intensity * splash_damage_options.static_damage_boost, power)
+
+      if explosion_size > splash_damage_options.cascade_damage_threshold then
+        timer.scheduleFunction(
+          trigger.action.explosion,
+          { objPos, explosion_size },
+          timer.getTime() + distance / 500
+        )
       end
     end
-    
-    
-    
-    if (script_enable == 1) then
-      gameMsg("SPLASH DAMAGE 2.1 SCRIPT RUNNING")
-      env.info("SPLASH DAMAGE 2.1 SCRIPT RUNNING")
-      timer.scheduleFunction(function() 
-          protectedCall(track_wpns)
-          return timer.getTime() + refreshRate
-        end, 
-        {}, 
-        timer.getTime() + refreshRate
-      )
-      world.addEventHandler(WpnHandler)
-    end
-    
-    
+    return true
+  end
+
+  world.searchObjects(Object.Category.UNIT, vol, ifFound)
+  world.searchObjects(Object.Category.STATIC, vol, ifFound)
+  world.searchObjects(Object.Category.SCENERY, vol, ifFound)
+
+  if splash_damage_options.damage_model then
+    timer.scheduleFunction(modelUnitDamage, foundUnits, timer.getTime() + 1.5)
+  end
+end
+
+----[[ ##### START SCRIPT ##### ]]----
+
+if script_enable == 1 then
+  env.info("SPLASH DAMAGE SCRIPT RUNNING")
+  timer.scheduleFunction(function()
+    track_wpns()
+    return timer.getTime() + refreshRate
+  end, {}, timer.getTime() + refreshRate)
+
+  world.addEventHandler(WpnHandler)
+end
